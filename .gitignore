@@ -1,0 +1,19 @@
+# Private project docs (mission PDFs etc.)
+ignore/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# Secrets (Mistral API key goes in .env, never in git)
+.env
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+#Claude
+.claude/
