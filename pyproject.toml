@@ -19,3 +19,8 @@ dependencies = [
 dev = [
     "pytest>=9.1.1",
 ]
+
+[tool.pytest.ini_options]
+# Make the project root importable so tests can do `from scripts import fetch_events`
+pythonpath = ["."]
+testpaths = ["tests"]

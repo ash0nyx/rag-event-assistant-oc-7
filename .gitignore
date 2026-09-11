@@ -10,6 +10,9 @@ __pycache__/
 # Secrets (Mistral API key goes in .env, never in git)
 .env
 
+# Raw API dumps (re-fetch with scripts/fetch_events.py)
+data/
+
 # Tooling caches
 .pytest_cache/
 .ruff_cache/
