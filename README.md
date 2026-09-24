@@ -7,7 +7,7 @@ OpenClassrooms AI Engineer path, project 7.
 ## Stack
 
 - Python 3.12, managed with [uv](https://docs.astral.sh/uv/)
-- LangChain, FAISS (vector store), Mistral (embeddings and LLM)
+- LangChain, FAISS (vector store), Mistral (`mistral-embed` for embeddings, `ministral-14b-latest` for generation)
 - FastAPI (planned), pytest, Ragas (planned)
 
 ## Setup
@@ -25,7 +25,7 @@ OpenClassrooms AI Engineer path, project 7.
    OPENAGENDA_API_KEY=your_key_here
    ```
 
-   Get a Mistral key at [console.mistral.ai](https://console.mistral.ai) and an Open Agenda key from your account settings at [openagenda.com](https://openagenda.com). Both free tiers are enough.
+   Get a Mistral key at [console.mistral.ai](https://console.mistral.ai) and an Open Agenda key from your account settings at [openagenda.com](https://openagenda.com). Both free tiers are enough. Note that the Mistral free tier does not enable `mistral-small` or `mistral-medium` (0 requests per minute); the project uses `ministral-14b-latest`, which is open on that tier.
 
 3. Verify the setup:
 
@@ -68,6 +68,27 @@ The data comes from the Open Agenda API, agenda "Que faire à Paris" (uid 648405
 The `data/` folder is git-ignored. Run the three scripts above to rebuild it.
 
 Note on `langchain-community`: the package is being sunset, but it still ships the only official LangChain wrapper for FAISS. The import is kept with its deprecation warning silenced.
+
+## Asking a question
+
+```bash
+uv run python scripts/ask_question.py "Quels concerts de jazz ce week-end ?"
+uv run python scripts/ask_question.py "Une expo gratuite pour enfants ?" --show-context
+```
+
+The chain lives in `rag/chain.py` (`RagAssistant` class) and runs in two phases:
+
+1. **Retrieval.** The question is embedded with `mistral-embed` and FAISS returns the 10 closest chunks. One chunk per event is kept (best-ranked first), at most 5 events. No LLM is involved in this phase.
+2. **Generation.** The kept chunks are pasted into a French system prompt together with today's date, and `ministral-14b-latest` writes the answer. The prompt tells the model to use only the provided events, to give title, dates, venue and price, to account for today's date, and to say clearly when nothing matches.
+
+The result holds the answer and the sources (uid, title, dates, venue, URL), so the API can show links and the evaluation step can check that answers stay faithful to the context.
+
+Two details worth knowing:
+
+- The LLM has no clock, and small models are unreliable at calendar arithmetic. Today's date and the dates of the coming weekend are computed in Python and injected in the prompt, in French, so that "ce week-end" or "ce mois-ci" are resolved correctly and past events are not recommended.
+- The LangChain Mistral wrapper only retries network errors. A small exponential backoff on HTTP 429 (rate limit) is added around the LLM call.
+
+Conversation history is out of scope for the POC.
 
 ## Tests
 
@@ -112,24 +133,44 @@ Embeddings are replaced by a fake model that maps a text to a 4-dimensional vect
 | `test_index_roundtrip_and_search` | The index is built, saved, reloaded, and a search returns the right chunk with its metadata. | This is exactly what the API will do at startup and on every question. |
 | `test_load_events_reads_csv_without_nan_in_text` | Missing text cells are read as empty strings, not NaN. | NaN in a document would break the header and the embedding call. |
 
+### `tests/test_chain.py`
+
+FAISS is replaced by a fake store that returns scripted chunks, and the LLM by LangChain's `FakeListChatModel`, which returns scripted answers. This isolates the chain logic from both external services.
+
+| Test | What it checks | Why it matters |
+|------|----------------|----------------|
+| `test_dedupe_keeps_first_chunk_per_event_and_caps_count` | Only the best-ranked chunk of each event survives, and the list stops at `max_events`. | A long event must not fill every slot of the answer. |
+| `test_describe_today_computes_the_coming_weekend_in_french` | The date sentence gives today and the coming Saturday and Sunday in French, for a weekday, a Saturday and a Sunday. | Python does the calendar arithmetic, not the LLM, which gets it wrong. |
+| `test_format_context_numbers_the_events` | Retrieved chunks are rendered as numbered `[Événement i]` blocks. | The prompt must be readable and stable for the LLM. |
+| `test_ask_returns_answer_and_sources` | `ask()` returns the LLM answer, asks FAISS for `top_k_chunks`, and lists deduplicated sources in rank order with their URL. | This is the contract the API relies on. |
+| `test_prompt_contains_rules_context_and_question` | The rendered prompt holds the rules, today's date, the retrieved chunks and the user question. | The prompt is the whole contract with the model; a missing piece silently degrades answers. |
+| `test_generate_retries_on_rate_limit` | Two HTTP 429 responses then a success: the call is retried with waits of 2 s then 4 s. | The free tier rate-limits; the chain must survive it without real waiting in tests. |
+| `test_ask_with_no_hits_still_answers` | With no retrieved chunk, the chain still returns an answer and an empty source list. | Empty context is a normal case, not an error. |
+
 ## Project structure
 
 ```
 .
 ├── README.md
-├── pyproject.toml           # dependencies (managed by uv)
+├── pyproject.toml           # dependencies (managed by uv); rag/ and scripts/ are installed as packages
+├── rag/
+│   └── chain.py             # RagAssistant: retrieval (FAISS) + generation (Mistral), prompt
 ├── scripts/
 │   ├── fetch_events.py      # Open Agenda API -> data/raw/events_raw.json
 │   ├── clean_events.py      # raw JSON -> data/processed/events.csv
-│   └── build_index.py       # events.csv -> chunks -> Mistral embeddings -> data/index/
+│   ├── build_index.py       # events.csv -> chunks -> Mistral embeddings -> data/index/
+│   └── ask_question.py      # command-line access to the chain, without the API
 └── tests/
     ├── test_fetch_events.py
     ├── test_clean_events.py
-    └── test_build_index.py
+    ├── test_build_index.py
+    └── test_chain.py
 ```
 
-The structure will grow as the project advances: RAG chain, API, and documentation.
+The structure will grow as the project advances: API, evaluation, and documentation.
 
 ## Status
 
-Work in progress. Done: environment setup, data collection and cleaning, FAISS vector index. Next: RAG chain with LangChain and Mistral.
+Work in progress. Done: environment setup, data collection and cleaning, FAISS vector index, RAG chain. Next: REST API with FastAPI.
+
+Known limits, to address after a first evaluation baseline: retrieval is purely semantic, so events are not filtered by date before reaching the LLM; the index is a snapshot and must be rebuilt to stay current.
