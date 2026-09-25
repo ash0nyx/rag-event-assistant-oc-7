@@ -8,7 +8,7 @@ OpenClassrooms AI Engineer path, project 7.
 
 - Python 3.12, managed with [uv](https://docs.astral.sh/uv/)
 - LangChain, FAISS (vector store), Mistral (`mistral-embed` for embeddings, `ministral-14b-latest` for generation)
-- FastAPI (planned), pytest, Ragas (planned)
+- FastAPI and uvicorn (REST API), pytest, Ragas (planned)
 
 ## Setup
 
@@ -18,11 +18,12 @@ OpenClassrooms AI Engineer path, project 7.
    uv sync
    ```
 
-2. Create a `.env` file at the project root with your API keys:
+2. Create a `.env` file at the project root with your API keys (see `.env.example`):
 
    ```
    MISTRAL_API_KEY=your_key_here
    OPENAGENDA_API_KEY=your_key_here
+   RAG_API_KEY=any_secret_string
    ```
 
    Get a Mistral key at [console.mistral.ai](https://console.mistral.ai) and an Open Agenda key from your account settings at [openagenda.com](https://openagenda.com). Both free tiers are enough. Note that the Mistral free tier does not enable `mistral-small` or `mistral-medium` (0 requests per minute); the project uses `ministral-14b-latest`, which is open on that tier.
@@ -35,16 +36,16 @@ OpenClassrooms AI Engineer path, project 7.
 
 ## Data pipeline
 
-The data comes from the Open Agenda API, agenda "Que faire à Paris" (uid 648405), the official City of Paris calendar. Scope for the POC: events in Paris with at least one date in the last 365 days or upcoming, capped at 200 events.
+The data comes from the Open Agenda API, agenda "Que faire à Paris" (uid 648405), the official City of Paris calendar. Scope for the POC: events in Paris with at least one session in a date window, by default today to 60 days ahead, capped at 500 events. About 2000 events are available for two months, so the cap is a sample size, not a limit of the source.
 
 1. Fetch raw events:
 
    ```bash
-   uv run python scripts/fetch_events.py            # 200 events by default
-   uv run python scripts/fetch_events.py --max-events 50
+   uv run python scripts/fetch_events.py                        # 500 events, today to +60 days
+   uv run python scripts/fetch_events.py --since-days 30 --until-days 90 --max-events 1000
    ```
 
-   The script paginates with the API cursor and saves the raw JSON to `data/raw/events_raw.json`.
+   The script paginates with the API cursor and saves the raw JSON to `data/raw/events_raw.json`. The date window is sent to the API as `timings[gte]` and `timings[lte]`.
 
 2. Clean them into a flat table:
 
@@ -90,6 +91,41 @@ Two details worth knowing:
 
 Conversation history is out of scope for the POC.
 
+## REST API
+
+```bash
+uv run uvicorn api.main:app --reload
+```
+
+Swagger documentation is generated at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs). The index and the LLM are loaded once at startup, not on each request.
+
+| Method | Route | Purpose |
+|--------|-------|---------|
+| `GET` | `/health` | Liveness check, used by Docker and the demo. |
+| `POST` | `/ask` | Body `{"question": "..."}`. Returns the answer and the retrieved sources. Questions shorter than 3 characters or blank are rejected with a 422. |
+| `POST` | `/rebuild` | Re-fetches Open Agenda, rebuilds the FAISS index and reloads it in memory. Optional body `{"max_events": 500, "from_date": "2026-09-25", "to_date": "2026-10-31"}`; defaults are 500 events from today to today + 60 days. Requires the `X-API-Key` header matching `RAG_API_KEY`; without a configured key the route is closed. |
+
+Example:
+
+```bash
+curl -X POST http://127.0.0.1:8000/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Quels concerts de jazz ce week-end ?"}'
+
+curl -X POST http://127.0.0.1:8000/rebuild \
+  -H "X-API-Key: $RAG_API_KEY" -H "Content-Type: application/json" \
+  -d '{"from_date": "2026-09-25", "to_date": "2026-10-31"}'
+```
+
+Functional test against a running API (also the demo script):
+
+```bash
+uv run python scripts/api_test.py
+uv run python scripts/api_test.py --question "Une expo gratuite ?"
+```
+
+It checks `/health`, asks three demo questions, and verifies that an empty question returns a 422. Unlike the unit tests, it uses the real index and the real LLM.
+
 ## Tests
 
 ```bash
@@ -106,7 +142,8 @@ Unit tests never call the real APIs. Network calls and embeddings are replaced b
 |------|----------------|----------------|
 | `test_concatenates_pages_and_passes_cursor_back` | Events from several pages are joined in order, and the `after` cursor returned by one page is sent on the next request. | Pagination is the part most likely to silently drop or duplicate events. |
 | `test_stops_at_max_events_and_shrinks_last_page` | Fetching stops exactly at `max_events`, the last request asks only for the missing count, and no extra request is made. | Keeps the dataset size predictable and avoids useless API calls. |
-| `test_sends_since_date_and_detailed_flag` | The API key, the `timings[gte]` date filter and `detailed=1` are really present in the request. | The "less than one year old" rule and the `longDescription` field depend on these parameters. |
+| `test_sends_since_date_and_detailed_flag` | The API key, the `timings[gte]` and `timings[lte]` date window and `detailed=1` are really present in the request. | The date scope and the `longDescription` field depend on these parameters. |
+| `test_no_upper_bound_when_until_is_omitted` | Without an end date, no `timings[lte]` parameter is sent. | The window end must be optional. |
 | `test_raises_when_api_reports_failure` | A response with `success: false` raises an error carrying the API message. | A bad key or quota error must fail loudly, not produce an empty dataset. |
 
 ### `tests/test_clean_events.py`
@@ -147,30 +184,51 @@ FAISS is replaced by a fake store that returns scripted chunks, and the LLM by L
 | `test_generate_retries_on_rate_limit` | Two HTTP 429 responses then a success: the call is retried with waits of 2 s then 4 s. | The free tier rate-limits; the chain must survive it without real waiting in tests. |
 | `test_ask_with_no_hits_still_answers` | With no retrieved chunk, the chain still returns an answer and an empty source list. | Empty context is a normal case, not an error. |
 
+### `tests/test_api.py`
+
+FastAPI's `TestClient` calls the app in-process. The assistant dependency is overridden with a fake, so no index is loaded and no LLM is called.
+
+| Test | What it checks | Why it matters |
+|------|----------------|----------------|
+| `test_health` | `/health` returns 200 and `{"status": "ok"}`. | Docker and the demo rely on it. |
+| `test_ask_returns_answer_and_sources` | `/ask` returns the answer and sources, and the question is stripped before reaching the chain. | This is the contract with the product and marketing teams. |
+| `test_ask_rejects_empty_or_too_short_question` | Missing, blank or 2-character questions return 422 and the chain is never called. | Bad input must fail fast, before spending an LLM call. |
+| `test_ask_rejects_malformed_body` | A body without the `question` field returns 422. | Pydantic validation is on. |
+| `test_rebuild_requires_api_key` | Missing or wrong `X-API-Key` returns 401. | Rebuilding is slow and costs API calls; it must not be open. |
+| `test_rebuild_is_closed_when_no_key_configured` | With no `RAG_API_KEY` in the environment, every call returns 401. | A missing config must close the route, not open it. |
+| `test_rebuild_runs_pipeline_and_reloads_assistant` | With the right key, the pipeline is called with the given dates and cap, and the in-memory assistant is replaced. | The fresh index must be served without restarting the API. |
+| `test_rebuild_defaults_to_today_plus_60_days` | With no body, the window is today to today + 60 days. | A scheduled rebuild with no parameters must always cover the near future. |
+| `test_rebuild_rejects_reversed_dates` | `to_date` before `from_date` returns 422. | Catch a typo before spending a fetch and a re-index. |
+
 ## Project structure
 
 ```
 .
 ├── README.md
-├── pyproject.toml           # dependencies (managed by uv); rag/ and scripts/ are installed as packages
+├── .env.example             # keys to set in .env
+├── pyproject.toml           # dependencies (managed by uv); rag/, scripts/ and api/ are installed as packages
+├── api/
+│   └── main.py              # FastAPI app: /health, /ask, /rebuild
 ├── rag/
 │   └── chain.py             # RagAssistant: retrieval (FAISS) + generation (Mistral), prompt
 ├── scripts/
 │   ├── fetch_events.py      # Open Agenda API -> data/raw/events_raw.json
 │   ├── clean_events.py      # raw JSON -> data/processed/events.csv
 │   ├── build_index.py       # events.csv -> chunks -> Mistral embeddings -> data/index/
-│   └── ask_question.py      # command-line access to the chain, without the API
+│   ├── ask_question.py      # command-line access to the chain, without the API
+│   └── api_test.py          # functional test of a running API (real index, real LLM)
 └── tests/
     ├── test_fetch_events.py
     ├── test_clean_events.py
     ├── test_build_index.py
-    └── test_chain.py
+    ├── test_chain.py
+    └── test_api.py
 ```
 
-The structure will grow as the project advances: API, evaluation, and documentation.
+The structure will grow as the project advances: evaluation, Docker, and documentation.
 
 ## Status
 
-Work in progress. Done: environment setup, data collection and cleaning, FAISS vector index, RAG chain. Next: REST API with FastAPI.
+Work in progress. Done: environment setup, data collection and cleaning, FAISS vector index, RAG chain, REST API. Next: annotated test set and Ragas evaluation.
 
 Known limits, to address after a first evaluation baseline: retrieval is purely semantic, so events are not filtered by date before reaching the LLM; the index is a snapshot and must be rebuilt to stay current.
