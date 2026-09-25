@@ -85,12 +85,22 @@ def test_sends_since_date_and_detailed_flag(monkeypatch):
     api = FakeAPI([make_page([1], after=None)])
     monkeypatch.setattr(fe.requests, "get", api.get)
 
-    fe.fetch_events("my-key", 123, date(2025, 8, 28), max_events=1)
+    fe.fetch_events("my-key", 123, date(2026, 9, 25), max_events=1, until=date(2026, 11, 24))
 
     params = api.calls[0]
     assert params["key"] == "my-key"
-    assert params["timings[gte]"] == "2025-08-28"  # the "less than one year" filter
+    assert params["timings[gte]"] == "2026-09-25"  # window start
+    assert params["timings[lte]"] == "2026-11-24"  # window end
     assert params["detailed"] == 1  # needed to get longDescription
+
+
+def test_no_upper_bound_when_until_is_omitted(monkeypatch):
+    api = FakeAPI([make_page([1], after=None)])
+    monkeypatch.setattr(fe.requests, "get", api.get)
+
+    fe.fetch_events("my-key", 123, date(2026, 9, 25), max_events=1)
+
+    assert "timings[lte]" not in api.calls[0]
 
 
 def test_raises_when_api_reports_failure(monkeypatch):
