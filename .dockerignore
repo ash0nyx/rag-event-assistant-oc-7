@@ -1,0 +1,19 @@
+# Not sent to the Docker build. Same spirit as .gitignore, plus things that
+# are git-tracked but useless in the image.
+.git
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+.claude
+
+# Secrets and data are provided at run time (--env-file, volume)
+.env
+data/
+
+# Not needed to run the API
+ignore/
+tests/
+evaluation/
+.env.example
