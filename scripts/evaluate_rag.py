@@ -33,7 +33,7 @@ import argparse
 import json
 import time
 import warnings
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 warnings.filterwarnings("ignore")
@@ -64,12 +64,15 @@ def retrieval_precision(retrieved_uids: list[int], expected_uids: list[int]) -> 
     return len(set(retrieved_uids) & set(expected_uids)) / len(set(retrieved_uids))
 
 
-def run_chain(assistant: RagAssistant, items: list[dict], pause: float) -> list[dict]:
-    """Ask every question once; keep answer, contexts and sources."""
+def run_chain(assistant: RagAssistant, items: list[dict], pause: float, today: date) -> list[dict]:
+    """Ask every question once; keep answer, contexts and sources.
+    `today` is the date the reference answers were written for (from the
+    test set), not the real clock: "ce week-end" and the past-event filter
+    must resolve the same way whenever the evaluation is run."""
     rows = []
     for item in items:
-        documents = assistant.retrieve(item["question"])
-        answer = assistant.generate(item["question"], documents)
+        documents = assistant.retrieve(item["question"], today)
+        answer = assistant.generate(item["question"], documents, today)
         retrieved_uids = [d.metadata["uid"] for d in documents]
         rows.append({
             "id": item["id"],
@@ -188,8 +191,9 @@ def main() -> None:
         rows = [r for r in previous["rows"] if r["id"] in wanted]
         print(f"Reusing {len(rows)} answers from {args.from_results}")
     else:
-        print(f"Running the chain on {len(items)} questions ...")
-        rows = run_chain(build_assistant(), items, args.pause)
+        today = date.fromisoformat(test_set["today"])
+        print(f"Running the chain on {len(items)} questions as of {today} ...")
+        rows = run_chain(build_assistant(), items, args.pause, today)
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
 

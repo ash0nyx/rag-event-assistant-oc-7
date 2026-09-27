@@ -9,6 +9,7 @@ Two kinds:
 """
 
 import json
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -57,6 +58,7 @@ def test_test_set_is_well_formed():
     """The annotated set is a deliverable: check its shape so a typo is
     caught before an expensive evaluation run."""
     test_set = json.loads(TEST_SET_PATH.read_text(encoding="utf-8"))
+    date.fromisoformat(test_set["today"])  # the evaluation date must be valid
     items = test_set["items"]
     assert len(items) >= 10
     assert len({i["id"] for i in items}) == len(items)  # unique ids

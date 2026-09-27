@@ -8,7 +8,7 @@ OpenClassrooms AI Engineer path, project 7.
 
 - Python 3.12, managed with [uv](https://docs.astral.sh/uv/)
 - LangChain, FAISS (vector store), Mistral (`mistral-embed` for embeddings, `ministral-14b-latest` for generation)
-- FastAPI and uvicorn (REST API), pytest, Ragas (planned)
+- FastAPI and uvicorn (REST API), pytest, Ragas (evaluation), Docker (local deployment)
 
 ## Setup
 
@@ -33,6 +33,8 @@ OpenClassrooms AI Engineer path, project 7.
    ```bash
    uv run python -c "from langchain_community.vectorstores import FAISS; print('ok')"
    ```
+
+Without uv, `requirements.txt` (exported from `uv.lock`) works with a plain virtualenv: `pip install -r requirements.txt`.
 
 ## Data pipeline
 
@@ -79,14 +81,15 @@ uv run python scripts/ask_question.py "Une expo gratuite pour enfants ?" --show-
 
 The chain lives in `rag/chain.py` (`RagAssistant` class) and runs in two phases:
 
-1. **Retrieval.** The question is embedded with `mistral-embed` and FAISS returns the 10 closest chunks. One chunk per event is kept (best-ranked first), at most 5 events. No LLM is involved in this phase.
-2. **Generation.** The kept chunks are pasted into a French system prompt together with today's date, and `ministral-14b-latest` writes the answer. The prompt tells the model to use only the provided events, to give title, dates, venue and price, to account for today's date, and to say clearly when nothing matches.
+1. **Retrieval.** The question is embedded with `mistral-embed` and FAISS returns the 20 closest chunks. Chunks whose event is already over (last session before today) are dropped, then one chunk per event is kept (best-ranked first), at most 5 events. No LLM is involved in this phase. The date filter is done in Python because vector similarity knows nothing about dates: "concert de jazz ce week-end" ranks last week's concert as high as next week's.
+2. **Generation.** The kept chunks are pasted into a French system prompt together with today's date, and `ministral-14b-latest` writes the answer. The prompt tells the model to use only the provided events, to give title, dates, venue and price, and, when nothing matches exactly, to say so and then offer the closest events from the context with the difference stated. The prompt is in French on purpose: Mistral models are trained heavily on French, the data and the expected answer are French, and mixing languages costs a small model more than it gains.
 
 The result holds the answer and the sources (uid, title, dates, venue, URL), so the API can show links and the evaluation step can check that answers stay faithful to the context.
 
 Two details worth knowing:
 
-- The LLM has no clock, and small models are unreliable at calendar arithmetic. Today's date and the dates of the coming weekend are computed in Python and injected in the prompt, in French, so that "ce week-end" or "ce mois-ci" are resolved correctly and past events are not recommended.
+- The LLM has no clock, and small models are unreliable at calendar arithmetic. Today's date, the dates of the weekend (the current one on a Sunday, the coming one otherwise) and the bounds of the current season are computed in Python and injected in the prompt, in French, so that "ce week-end", "ce mois-ci" or "cet automne" are resolved correctly. Each retrieved event also gets an explicit list of the months it covers. These calendar sentences are only added when the question contains a relative time expression (detected by a regular expression); for undated questions the prompt says instead that every event in the context fits, because the calendar text made the model restrict "un atelier le mercredi" to the coming weekend.
+- The chat model runs at temperature 0: same question and context, same answer. Creativity brings nothing to a recommendation grounded in the context, and determinism makes the evaluation reproducible and the demo predictable.
 - The LangChain Mistral wrapper only retries network errors. A small exponential backoff on HTTP 429 (rate limit) is added around the LLM call.
 
 Conversation history is out of scope for the POC.
@@ -126,6 +129,39 @@ uv run python scripts/api_test.py --question "Une expo gratuite ?"
 
 It checks `/health`, asks three demo questions, and verifies that an empty question returns a 422. Unlike the unit tests, it uses the real index and the real LLM.
 
+## Docker
+
+Run the API in a container, without installing Python or uv on the machine. The index must exist first (`data/index/`, built by the pipeline above or by a `/rebuild` call).
+
+```bash
+docker compose up --build        # build the image and start the API on port 8000
+docker compose up -d             # same, in the background
+docker compose logs -f           # follow the logs
+docker compose down              # stop and remove the container
+```
+
+Without Compose:
+
+```bash
+docker build -t puls-events-rag .
+docker run -p 8000:8000 --env-file .env -v ./data:/app/data puls-events-rag
+```
+
+Then `http://localhost:8000/docs` and `uv run python scripts/api_test.py` work exactly as with a local server.
+
+How the image is built and run, and why:
+
+- **In the image**: Python 3.12, the exact versions from `uv.lock` (installed with `uv sync --frozen`), and the code. Dependencies are installed before the code is copied, so a code change reuses the cached install.
+- **Outside the image**: secrets, passed at run time with `--env-file .env`, and `data/`, mounted as a volume at `/app/data`. A `/rebuild` call from the container writes the new index to the host folder, so refreshing the data never needs a new image.
+- **Ports**: uvicorn listens on `0.0.0.0:8000` inside the container (not `127.0.0.1`, which would be unreachable from outside), and `-p 8000:8000` publishes it on the host.
+- **Non-root**: the process runs as user `app` (uid 1000), so files written to the volume belong to the host user and a compromised API cannot act as root.
+- **Health check**: Docker calls `/health` every 30 s; `docker ps` shows the container as healthy or unhealthy.
+- `.dockerignore` keeps `.venv`, `data/`, `.env`, tests and private docs out of the build.
+
+Image size is about 1.2 GB, mostly the tokenizer and numeric stack; acceptable for a local POC.
+
+Troubleshooting: a VPN with a kill switch (NordVPN and similar) blocks traffic between the host and Docker's network, so `localhost:8000` hangs even though the container reports healthy. Disconnect the VPN or allowlist Docker's subnet (`nordvpn allowlist add subnet 172.17.0.0/16`).
+
 ## Evaluation
 
 ```bash
@@ -161,13 +197,26 @@ Results are written to `evaluation/results/latest.json` (per question and averag
 | Metric | Average | Threshold |
 |--------|---------|-----------|
 | retrieval_recall | 0.96 | 0.6 |
-| retrieval_precision | 0.75 | 0.4 |
+| retrieval_precision | 0.71 | 0.4 |
 | faithfulness | 0.83 | 0.5 |
-| answer_relevancy | 0.77 | 0.5 |
+| answer_relevancy | 0.73 | 0.5 |
 
-Reading: the retriever finds almost every expected event (the one miss is a broad Halloween question with 7 expected events and a 5-event cap). Precision is lower on questions with a date constraint ("ce week-end"), because retrieval is purely semantic and returns jazz concerts of every date; date-aware retrieval is the first improvement to make. Answers stay faithful to the retrieved events, and the two "no match" questions get a clear negative answer with the closest alternatives.
+Reading: the retriever finds almost every expected event (the one miss is a broad Halloween question with 7 expected events and a 5-event cap). Precision is lower on questions with a date constraint ("ce week-end"), because vector similarity ignores dates and returns jazz concerts of every date; only finished events are filtered out, matching a requested period before the search is the next improvement. Answers stay faithful to the retrieved events. The "no match" questions get a clear negative answer followed by the closest alternatives; Ragas scores such answers low on relevancy by design (it treats "nothing matches exactly" as non-committal), which is why one relevancy score is 0 for an answer that is actually right.
 
-The full run takes about 25 minutes on the free tier with 2 parallel judge calls. More workers looked faster but made every call slower until they timed out (8 workers: 13 of 14 faithfulness jobs lost). `--from-results` re-scores saved answers without re-running the chain, and results are saved before the judge phase so a network drop cannot lose them.
+The successive runs, all on the same 14 questions and judge, show how the evaluation drove the changes:
+
+| Run | Change | precision | faithfulness | relevancy |
+|-----|--------|-----------|--------------|-----------|
+| 1 | baseline (10 chunks, temperature 0.2) | 0.75 | 0.83 | 0.77 |
+| 2 | 20 chunks, past events filtered | 0.71 | 0.68 | 0.75 |
+| 3 | season dates in every prompt, temperature 0 | 0.71 | 0.55 | 0.73 |
+| 4 | calendar text only for dated questions, near-match rule | 0.71 | 0.83 | 0.73 |
+
+Run 3 is the useful lesson: a prompt addition that looked harmless (season bounds for every question) made the model restrict undated questions to the coming weekend and cost 0.28 of faithfulness. The evaluation caught it, and run 4 recovered it. Precision between runs 1 and 2 reflects the annotation as much as the system: with 20 candidates, questions with only two expected events now return three extra relevant ones that the reference does not list.
+
+Variance: a single run of a 14B judge moves individual scores by 0.1 to 0.3, so conclusions should rest on averages and on reading the answers, not on one number.
+
+The evaluation runs "as of" the date stored in the test set (`today`), not the real clock, so "ce week-end" and the past-event filter resolve the same way whenever it is run. The full run takes about 25 minutes on the free tier with 2 parallel judge calls. More workers looked faster but made every call slower until they timed out (8 workers: 13 of 14 faithfulness jobs lost). `--from-results` re-scores saved answers without re-running the chain, and results are saved before the judge phase so a network drop cannot lose them.
 
 Two limits of the evaluation, worth knowing:
 
@@ -181,7 +230,10 @@ Running the set surfaced four generation failures of the 14B model, each fixed b
 - it could not infer that an event running from 29 September to 31 January happens "in October": an explicit list of covered months is now added to each retrieved event;
 - it miscounted the days of the coming weekend: the dates are now computed and stated in the prompt;
 - it restricted undated questions ("un atelier le mercredi ?") to the coming weekend: a rule now says that undated questions accept any upcoming event;
-- it did not map the agenda keyword "Jeunes" to adolescents: the audience keywords are now explained in the prompt.
+- it did not map the agenda keyword "Jeunes" to adolescents: the audience keywords are now explained in the prompt;
+- given weekend and season dates on every question, it restricted undated questions to the coming weekend: the calendar sentences are now only added when the question contains a relative time expression;
+- told to "propose nothing else" when nothing matched, it refused defensible near matches (a public rehearsal for "un spectacle de danse contemporaine"): it now states the mismatch and offers the closest events from the context;
+- on a Sunday evening it still listed Saturday's concert for "ce week-end": finished events are now filtered out in Python before the prompt.
 
 Before these fixes, faithfulness was below 0.5 on the affected questions; after, the average is 0.83.
 
@@ -276,6 +328,10 @@ FastAPI's `TestClient` calls the app in-process. The assistant dependency is ove
 ├── README.md
 ├── .env.example             # keys to set in .env
 ├── pyproject.toml           # dependencies (managed by uv); rag/, scripts/ and api/ are installed as packages
+├── requirements.txt         # exported from uv.lock, for pip users
+├── Dockerfile               # image: Python 3.12 + locked dependencies + code, non-root
+├── docker-compose.yml       # one-command run: ports, .env, data volume
+├── .dockerignore
 ├── api/
 │   └── main.py              # FastAPI app: /health, /ask, /rebuild
 ├── rag/
@@ -299,10 +355,8 @@ FastAPI's `TestClient` calls the app in-process. The assistant dependency is ove
     └── test_evaluation.py
 ```
 
-The structure will grow as the project advances: Docker and documentation.
-
 ## Status
 
-Work in progress. Done: environment setup, data collection and cleaning, FAISS vector index, RAG chain, REST API, annotated test set and evaluation. Next: Docker.
+All six steps of the mission are implemented: environment, data pipeline, FAISS index, RAG chain, REST API, evaluation, Docker. Remaining: technical report and presentation.
 
-Known limits: retrieval is purely semantic, so events are not filtered by date before reaching the LLM (the prompt receives today's date and each event's period instead); the index is a snapshot and must be rebuilt to stay current; the data source is the City of Paris agenda, rich on public and cultural events, thin on commercial nightlife.
+Known limits: the date filter only removes finished events, it does not yet match a requested period ("en novembre") before the vector search; the index is a snapshot and must be rebuilt to stay current; the data source is the City of Paris agenda, rich on public and cultural events, thin on commercial nightlife; the 14B model available on the free tier still misreads some borderline questions, and a single judge run carries noticeable variance.

@@ -1,0 +1,11 @@
+# One command to build and run the API: docker compose up --build
+services:
+  api:
+    build: .
+    image: puls-events-rag
+    ports:
+      - "8000:8000"          # host:container
+    env_file: .env           # MISTRAL_API_KEY, OPENAGENDA_API_KEY, RAG_API_KEY
+    volumes:
+      - ./data:/app/data     # index and CSV stay on the host; /rebuild updates them
+    restart: unless-stopped
