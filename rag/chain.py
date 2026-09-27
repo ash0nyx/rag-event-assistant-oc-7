@@ -47,6 +47,9 @@ SYSTEM_PROMPT = """Tu es l'assistant de Puls-Events. Tu recommandes des événem
 
 Règles :
 - Tiens compte de la date du jour pour interpréter "ce week-end", "ce mois-ci", etc. et ne recommande pas d'événement déjà terminé.
+- Si la question ne précise aucune date, tous les événements à venir conviennent, quelle que soit leur date : ne limite pas la réponse à ce week-end.
+- Dans les mots-clés, "Jeunes" désigne les adolescents et jeunes adultes, "Enfants" les moins de 12 ans, "Tout public" tout le monde.
+- Un événement qui se déroule sur une période (par exemple "29 septembre 2026 - 31 janvier 2027") correspond à toute date ou tout mois inclus dans cette période.
 - Réponds uniquement à partir des événements fournis dans le contexte ci-dessous.
 - Si aucun événement du contexte ne correspond à la question, dis-le clairement et ne propose rien d'autre.
 - Pour chaque événement recommandé, donne son titre, ses dates, son lieu et son tarif s'ils sont connus.
@@ -98,10 +101,36 @@ class RagAnswer:
     sources: list[dict] = field(default_factory=list)
 
 
+def describe_period(first_begin: str | None, last_end: str | None) -> str | None:
+    """Explicit period line computed from the ISO timestamps in the metadata,
+    e.g. 'Période : du 29 septembre 2026 au 31 janvier 2027 (mois couverts :
+    septembre 2026, octobre 2026, ...)'. Small LLMs fail to infer that such a
+    range includes October; listing the months removes the inference."""
+    if not first_begin or not last_end:
+        return None
+    try:
+        start = date.fromisoformat(first_begin[:10])
+        end = date.fromisoformat(last_end[:10])
+    except ValueError:
+        return None
+    months = []
+    y, m = start.year, start.month
+    while (y, m) <= (end.year, end.month) and len(months) < 12:
+        months.append(f"{_MONTHS[m - 1]} {y}")
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    covered = ", ".join(months) + (", ..." if (y, m) <= (end.year, end.month) else "")
+    return f"Période : du {format_date_fr(start)} au {format_date_fr(end)} (mois couverts : {covered})"
+
+
 def format_context(documents: list[Document]) -> str:
     """Turn retrieved chunks into the text block pasted into the prompt.
-    Chunks already start with their event header (title, dates, venue)."""
-    blocks = [f"[Événement {i}]\n{doc.page_content}" for i, doc in enumerate(documents, start=1)]
+    Chunks already start with their event header (title, dates, venue); an
+    explicit period line is added from the metadata."""
+    blocks = []
+    for i, doc in enumerate(documents, start=1):
+        period = describe_period(doc.metadata.get("first_begin"), doc.metadata.get("last_end"))
+        lines = [f"[Événement {i}]"] + ([period] if period else []) + [doc.page_content]
+        blocks.append("\n".join(lines))
     return "\n\n".join(blocks)
 
 
