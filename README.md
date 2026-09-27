@@ -126,6 +126,65 @@ uv run python scripts/api_test.py --question "Une expo gratuite ?"
 
 It checks `/health`, asks three demo questions, and verifies that an empty question returns a 422. Unlike the unit tests, it uses the real index and the real LLM.
 
+## Evaluation
+
+```bash
+uv run python scripts/evaluate_rag.py                 # full annotated set, about 25 minutes
+uv run python scripts/evaluate_rag.py --limit 3       # quick check
+uv run python scripts/evaluate_rag.py --skip-ragas    # retrieval metrics only, no judge calls
+uv run python scripts/evaluate_rag.py --from-results evaluation/results/latest.json --metrics faithfulness
+                                                      # re-score one metric on saved answers
+```
+
+### Annotated test set
+
+`evaluation/test_set.json` holds 14 questions with a hand-written reference answer and the uids of the events a good retrieval should surface. The references were written from the indexed data (index of 2026-09-25, events from 2026-09-25 to 2026-12-31) and reviewed by hand. Two question types:
+
+- `recommendation` (12 questions): matching events exist; the answer should list them with dates, venue and price.
+- `no_match` (2 questions): nothing really fits (a Wagner opera, a Japanese cooking class); the answer should say so instead of inventing an event.
+
+### Metrics
+
+| Metric | Computed by | Question |
+|--------|-------------|----------|
+| `retrieval_recall` | exact, from the annotated uids | Which share of the expected events did the retriever return? |
+| `retrieval_precision` | exact, from the annotated uids | Which share of the returned events were expected? |
+| `faithfulness` | Ragas, LLM judge | Is every claim in the answer supported by the retrieved chunks? Detects hallucinations. |
+| `answer_relevancy` | Ragas, LLM judge | Does the answer address the question? Non-answers score low. |
+
+The judge is `ministral-14b-latest`, the strongest model open on the Mistral free tier. Ragas' `context_precision` and `context_recall` were tried and dropped: they ask the judge to grade one chunk at a time against the reference answer, and this judge grades the whole reference instead, returning 0 for chunks that are plainly relevant. The uid-based metrics are exact, free, and answer the same question.
+
+Results are written to `evaluation/results/latest.json` (per question and averages). `tests/test_evaluation.py` reads that file and fails if an average drops below its threshold, so a regression is caught by `pytest` without re-running the judge.
+
+### Results (index of 2026-09-25, 14 questions)
+
+| Metric | Average | Threshold |
+|--------|---------|-----------|
+| retrieval_recall | 0.96 | 0.6 |
+| retrieval_precision | 0.75 | 0.4 |
+| faithfulness | 0.83 | 0.5 |
+| answer_relevancy | 0.77 | 0.5 |
+
+Reading: the retriever finds almost every expected event (the one miss is a broad Halloween question with 7 expected events and a 5-event cap). Precision is lower on questions with a date constraint ("ce week-end"), because retrieval is purely semantic and returns jazz concerts of every date; date-aware retrieval is the first improvement to make. Answers stay faithful to the retrieved events, and the two "no match" questions get a clear negative answer with the closest alternatives.
+
+The full run takes about 25 minutes on the free tier with 2 parallel judge calls. More workers looked faster but made every call slower until they timed out (8 workers: 13 of 14 faithfulness jobs lost). `--from-results` re-scores saved answers without re-running the chain, and results are saved before the judge phase so a network drop cannot lose them.
+
+Two limits of the evaluation, worth knowing:
+
+- A 14B judge on English metric prompts with French content is noisy. A larger judge (`mistral-large`) would be both faster and more reliable; it is not available on the free tier.
+- Reference answers are tied to one index snapshot. After a rebuild, the test set must be re-annotated.
+
+### What the evaluation caught
+
+Running the set surfaced four generation failures of the 14B model, each fixed by a prompt rule or by computing in Python what the model got wrong:
+
+- it could not infer that an event running from 29 September to 31 January happens "in October": an explicit list of covered months is now added to each retrieved event;
+- it miscounted the days of the coming weekend: the dates are now computed and stated in the prompt;
+- it restricted undated questions ("un atelier le mercredi ?") to the coming weekend: a rule now says that undated questions accept any upcoming event;
+- it did not map the agenda keyword "Jeunes" to adolescents: the audience keywords are now explained in the prompt.
+
+Before these fixes, faithfulness was below 0.5 on the affected questions; after, the average is 0.83.
+
 ## Tests
 
 ```bash
@@ -200,6 +259,16 @@ FastAPI's `TestClient` calls the app in-process. The assistant dependency is ove
 | `test_rebuild_defaults_to_today_plus_60_days` | With no body, the window is today to today + 60 days. | A scheduled rebuild with no parameters must always cover the near future. |
 | `test_rebuild_rejects_reversed_dates` | `to_date` before `from_date` returns 422. | Catch a typo before spending a fetch and a re-index. |
 
+### `tests/test_evaluation.py`
+
+| Test | What it checks | Why it matters |
+|------|----------------|----------------|
+| `test_retrieval_recall` | Share of expected uids found; `None` when nothing is expected. | Exact retrieval metric, no judge needed. |
+| `test_retrieval_precision` | Share of retrieved uids that were expected; `None` when nothing is expected or retrieved. | Measures noise in what reaches the LLM. |
+| `test_summarize_ignores_missing_values` | Averages skip `None` values instead of counting them as 0. | `no_match` questions must not drag retrieval scores down. |
+| `test_test_set_is_well_formed` | Unique ids, non-empty question and reference, valid type, expected uids on recommendation questions. | The annotated set is a deliverable; a typo must fail before a 10-minute run. |
+| `test_latest_scores_meet_thresholds` | Averages in `evaluation/results/latest.json` are above the thresholds. Skipped when no results exist. | Regression gate: a prompt or model change that degrades answers fails `pytest`. |
+
 ## Project structure
 
 ```
@@ -216,19 +285,24 @@ FastAPI's `TestClient` calls the app in-process. The assistant dependency is ove
 │   ├── clean_events.py      # raw JSON -> data/processed/events.csv
 │   ├── build_index.py       # events.csv -> chunks -> Mistral embeddings -> data/index/
 │   ├── ask_question.py      # command-line access to the chain, without the API
-│   └── api_test.py          # functional test of a running API (real index, real LLM)
+│   ├── api_test.py          # functional test of a running API (real index, real LLM)
+│   └── evaluate_rag.py      # Ragas + retrieval metrics on the annotated set -> evaluation/results/
+├── evaluation/
+│   ├── test_set.json        # 14 annotated questions (reference answer, expected event uids)
+│   └── results/             # latest.json and timestamped runs
 └── tests/
     ├── test_fetch_events.py
     ├── test_clean_events.py
     ├── test_build_index.py
     ├── test_chain.py
-    └── test_api.py
+    ├── test_api.py
+    └── test_evaluation.py
 ```
 
-The structure will grow as the project advances: evaluation, Docker, and documentation.
+The structure will grow as the project advances: Docker and documentation.
 
 ## Status
 
-Work in progress. Done: environment setup, data collection and cleaning, FAISS vector index, RAG chain, REST API. Next: annotated test set and Ragas evaluation.
+Work in progress. Done: environment setup, data collection and cleaning, FAISS vector index, RAG chain, REST API, annotated test set and evaluation. Next: Docker.
 
-Known limits, to address after a first evaluation baseline: retrieval is purely semantic, so events are not filtered by date before reaching the LLM; the index is a snapshot and must be rebuilt to stay current.
+Known limits: retrieval is purely semantic, so events are not filtered by date before reaching the LLM (the prompt receives today's date and each event's period instead); the index is a snapshot and must be rebuilt to stay current; the data source is the City of Paris agenda, rich on public and cultural events, thin on commercial nightlife.

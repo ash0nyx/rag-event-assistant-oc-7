@@ -11,7 +11,7 @@ from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
 from datetime import date
 
-from rag.chain import RagAssistant, dedupe_by_event, describe_today, format_context
+from rag.chain import RagAssistant, dedupe_by_event, describe_period, describe_today, format_context
 
 
 def make_doc(uid: int, title: str, chunk_index: int = 0) -> Document:
@@ -68,10 +68,23 @@ def test_describe_today_computes_the_coming_weekend_in_french():
     assert "samedi 26 septembre 2026 et le dimanche 27 septembre 2026" in describe_today(date(2026, 9, 26))
 
 
-def test_format_context_numbers_the_events():
-    text = format_context([make_doc(1, "Expo A"), make_doc(2, "Concert B")])
-    assert text.startswith("[Événement 1]\nÉvénement : Expo A")
-    assert "[Événement 2]\nÉvénement : Concert B" in text
+def test_describe_period_lists_covered_months():
+    """Python lists the months so the LLM never has to infer that a range
+    like September to January includes October."""
+    text = describe_period("2026-09-29T10:00:00+02:00", "2027-01-31T18:00:00+01:00")
+    assert text.startswith("Période : du mardi 29 septembre 2026 au dimanche 31 janvier 2027")
+    assert "octobre 2026, novembre 2026, décembre 2026, janvier 2027" in text
+    assert describe_period(None, "2026-10-01") is None
+    assert describe_period("not-a-date", "2026-10-01") is None
+
+
+def test_format_context_numbers_the_events_and_adds_period():
+    docs = [make_doc(1, "Expo A"), make_doc(2, "Concert B")]
+    docs[0].metadata.update(first_begin="2026-10-01T10:00:00+02:00", last_end="2026-10-02T18:00:00+02:00")
+    text = format_context(docs)
+    assert text.startswith("[Événement 1]\nPériode : du jeudi 1 octobre 2026 au vendredi 2 octobre 2026")
+    assert "Événement : Expo A" in text
+    assert "[Événement 2]\nÉvénement : Concert B" in text  # no timestamps: no period line
 
 
 def test_ask_returns_answer_and_sources():

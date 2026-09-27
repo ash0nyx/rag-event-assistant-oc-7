@@ -1,0 +1,105 @@
+{
+  "description": "Annotated evaluation set for the Puls-Events RAG assistant. Reference answers were written by hand from the Open Agenda index built on 2026-09-25 (agenda 'Que faire à Paris', events from 2026-09-25 to 2026-12-31, 2650 events). 'expected_uids' lists events a good retrieval should surface; 'ground_truth' is the reference answer used by Ragas. Questions of type 'no_match' expect the assistant to say that nothing fits.",
+  "index_built_on": "2026-09-25",
+  "today": "2026-09-25",
+  "items": [
+    {
+      "id": "jazz_weekend",
+      "type": "recommendation",
+      "question": "Quels concerts de jazz ce week-end ?",
+      "ground_truth": "Ce week-end (26 et 27 septembre 2026), un concert de jazz gratuit a lieu le samedi 26 septembre à 18h au Conservatoire Municipal Gabriel Fauré (Paris 5e), entrée libre selon les places disponibles.",
+      "expected_uids": [16943861]
+    },
+    {
+      "id": "photo_expo_october",
+      "type": "recommendation",
+      "question": "Une exposition de photographie en octobre ?",
+      "ground_truth": "En octobre, l'exposition 'Photographies japonaises de la Bibliothèque nationale de France' est présentée à la Bibliothèque François-Mitterrand (Paris 13e) du 29 septembre 2026 au 31 janvier 2027, tarif de 0 à 15 euros. L'exposition gratuite 'L'être et le néon' au Carré de Baudouin (Paris 20e) se termine le 3 octobre.",
+      "expected_uids": [57362659, 71587012]
+    },
+    {
+      "id": "kids_workshop_wednesday",
+      "type": "recommendation",
+      "question": "Un atelier gratuit pour les enfants le mercredi ?",
+      "ground_truth": "Plusieurs ateliers gratuits pour enfants ont lieu le mercredi : 'Le petit atelier' à la Bibliothèque Marguerite Audoux (Paris 3e) les mercredis 14 octobre, 18 novembre et 16 décembre à 16h, sur inscription par mail ; 'L'atelier du mercredi' à la Bibliothèque L'Heure joyeuse (Paris 5e) certains mercredis du 30 septembre au 9 décembre ; et l'atelier 'Fabrique à Brac' à la Médiathèque James Baldwin (Paris 19e) certains mercredis, inscription sur place.",
+      "expected_uids": [89306621, 66563782, 48262924, 97218410, 96343656]
+    },
+    {
+      "id": "halloween",
+      "type": "recommendation",
+      "question": "Quels événements autour d'Halloween ?",
+      "ground_truth": "Pour les adultes : le cabaret burlesque Tease Tease Tease propose une édition spéciale Halloween au Cirque Electrique (Paris 20e) le jeudi 22 octobre à 21h (payant), et un jeu de loup-garou grandeur nature se joue au Secret de l'Île (Paris 4e) du 26 octobre au 1er novembre (35 euros). Le samedi 31 octobre, la chanteuse Melissa Lesnie donne un concert 'I Want to be Evil' au 38Riv Jazz Club (Paris 4e) à 15h et 17h (16 à 19 euros), et la Médiathèque Violette Leduc (Paris 11e) organise une fête Halloween à 18h pour les jeunes et adultes, gratuite sur réservation. Pour les enfants, le 31 octobre : la Grande journée Halloween à la Bibliothèque Maurice Genevoix (Paris 18e) à partir de 10h30, gratuite sur réservation ; Melville fête Halloween à la Médiathèque Jean-Pierre Melville (Paris 13e) à 10h ; et un ciné-spectacle spécial Halloween à la Fondation Jérôme Seydoux-Pathé (Paris 13e) à 14h30 (8 euros).",
+      "expected_uids": [74142812, 27210506, 88775739, 52573658, 2779856, 26310198, 41040645]
+    },
+    {
+      "id": "history_walk",
+      "type": "recommendation",
+      "question": "Une balade urbaine sur l'histoire de Paris ?",
+      "ground_truth": "Plusieurs balades urbaines payantes sont proposées : 'Le Paris gallo-romain : au temps de Lutèce' le 24 octobre (18 euros), 'Le Paris de la Révolution' le dimanche 4 octobre à 15h (21 euros), 'Surprenant 7e arrondissement' le samedi 3 octobre à 11h (18 euros), et 'Les légendes du Paris maudit', visite nocturne jusqu'au 10 octobre (21 euros).",
+      "expected_uids": [62102223, 94179189, 53831185, 40147156, 91420444]
+    },
+    {
+      "id": "dance_november",
+      "type": "recommendation",
+      "question": "Un spectacle de danse contemporaine en novembre ?",
+      "ground_truth": "En novembre, le Centre Culturel Coréen (Paris 8e) présente gratuitement le spectacle de danse 'Trad Now' du 3 au 5 novembre, et Le Regard du Cygne (Paris 20e) propose une répétition publique et projection avec Aurélie Berland le lundi 30 novembre à 16h, gratuit.",
+      "expected_uids": [58503910, 80640018]
+    },
+    {
+      "id": "science_talk_free",
+      "type": "recommendation",
+      "question": "Une conférence scientifique gratuite ?",
+      "ground_truth": "Plusieurs conférences scientifiques gratuites sont proposées : les Échappées inattendues du CNRS au Musée des arts et métiers (Paris 3e) du 2 au 4 octobre et à la Médiathèque Marguerite Duras (Paris 20e) le samedi 26 septembre à 16h ; une conférence sur les plantes et leurs propriétés imperméables à la Bibliothèque Andrée Chedid (Paris 15e) le samedi 3 octobre à 15h30 ; une table ronde 'Sciences et Design : à la rencontre du corail' à la Médiathèque Virginia Woolf (Paris 13e) le samedi 10 octobre à 15h ; et 'L'art et la science du goût' par Christophe Lavelle à la Bibliothèque Robert Sabatier (Paris 18e) le mardi 17 novembre à 19h.",
+      "expected_uids": [82844915, 49298661, 85913269, 35410206, 34813125]
+    },
+    {
+      "id": "christmas_december",
+      "type": "recommendation",
+      "question": "Quels marchés de Noël ou événements de Noël en décembre ?",
+      "ground_truth": "En décembre : le Marché de Noël Notre Dame au square René Viviani (Paris 5e) du 26 novembre au 27 décembre, gratuit ; le marché de créateurs Klin d'œil spécial Noël au Carreau du Temple (Paris 3e) les 12 et 13 décembre, entrée libre ; un concert de Noël au Théâtre du Châtelet le dimanche 6 décembre à 11h (10 à 18 euros) ; un grand concert de chants traditionnels de Noël à l'église de la Madeleine les 21 et 23 décembre (20 à 70 euros) ; et un atelier bricolages de Noël à la Médiathèque Marguerite Yourcenar (Paris 15e) le samedi 19 décembre à 10h30, gratuit.",
+      "expected_uids": [4681325, 32557807, 14798711, 86513199, 41021977]
+    },
+    {
+      "id": "classical_church",
+      "type": "recommendation",
+      "question": "Un concert de musique classique dans une église ?",
+      "ground_truth": "Plusieurs concerts classiques payants ont lieu dans des églises : Les 4 saisons de Vivaldi, Ave Maria et célèbres concertos à l'église de la Madeleine (Paris 8e) du 30 septembre au 15 décembre (20 à 60 euros) ; le Requiem de Mozart et le Boléro de Ravel à l'église Saint-Germain-des-Prés le vendredi 23 octobre à 20h45 (20 à 60 euros) ; de la musique baroque allemande à l'église Notre-Dame de la Salette (Paris 15e) le dimanche 18 octobre à 15h30 ; et le Requiem de Fauré avec la 3e symphonie de Beethoven à la Madeleine le lundi 28 décembre à 20h45.",
+      "expected_uids": [7570074, 6000605, 11452991, 17076498, 8999902]
+    },
+    {
+      "id": "film_festival_autumn",
+      "type": "recommendation",
+      "question": "Un festival de cinéma cet automne ?",
+      "ground_truth": "Cet automne, le festival de cinéma européen SABORD a lieu les 28 et 30 septembre au Centre Paris Anim' Jacques Bravo (Paris 9e), gratuit. Pour les enfants, 'Mon Premier Festival' se tient du 17 au 24 octobre à la Bibliothèque François Villon (Paris 10e) et les 21 et 23 octobre à la Bibliothèque Saint-Eloi (Paris 12e), et 'Les racontines font leur cinéma' les 23 et 27 octobre au Cinéma des Cinéastes (Paris 17e), gratuit.",
+      "expected_uids": [91265403, 17266899, 52456331, 41719822]
+    },
+    {
+      "id": "sport_sunday_free",
+      "type": "recommendation",
+      "question": "Des activités sportives gratuites le dimanche ?",
+      "ground_truth": "Le programme gratuit 'Paris sport dimanches' propose des séances de remise en forme tous les dimanches à partir du 27 septembre au Parc Georges Brassens et au Parc André Citroën (Paris 15e), au Parc Montsouris (Paris 14e), ainsi que du football et du renforcement musculaire au TEP Angélique Duchemin (Paris 20e). L'association Meilleur qu'Hier propose aussi du multisports gratuit le dimanche au Centre Sportif Angélique Duchemin jusqu'au 27 décembre.",
+      "expected_uids": [75295313, 90563484, 36361620, 76155869, 42144833]
+    },
+    {
+      "id": "teen_theatre",
+      "type": "recommendation",
+      "question": "Une pièce de théâtre pour adolescents ?",
+      "ground_truth": "Le Théâtre de la Concorde (Paris 8e) propose '24 Place Beaumarchais' du 30 octobre au 7 novembre (8 à 15 euros) et 'Que jeunesse se raconte' les 8 et 9 décembre (8 à 20 euros), tous deux destinés aux jeunes et adultes. Un stage de théâtre pour jeunes et adultes a aussi lieu du 26 au 31 octobre aux Salles Saint-Roch (Paris 1er).",
+      "expected_uids": [69662581, 2257832, 44084126]
+    },
+    {
+      "id": "wagner_no_match",
+      "type": "no_match",
+      "question": "Y a-t-il un opéra de Wagner ce mois-ci ?",
+      "ground_truth": "Aucun opéra de Wagner n'est programmé dans les événements disponibles. Les événements lyriques ou symphoniques les plus proches sont Les Noces de Figaro de Mozart les 3 et 10 octobre au Conservatoire Frédéric Chopin (gratuit) et le Requiem de Verdi à l'église de la Madeleine le 7 novembre.",
+      "expected_uids": []
+    },
+    {
+      "id": "japanese_cooking_no_match",
+      "type": "no_match",
+      "question": "Un cours de cuisine japonaise ?",
+      "ground_truth": "Aucun cours de cuisine japonaise n'est proposé dans les événements disponibles. La Maison de la culture du Japon à Paris (15e) organise en revanche une démonstration et dégustation 'Découverte de Mura écovillage japonais' le samedi 17 octobre (20 euros).",
+      "expected_uids": [56305064]
+    }
+  ]
+}
