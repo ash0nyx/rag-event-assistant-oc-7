@@ -1,5 +1,5 @@
 {
-  "evaluated_at": "2026-09-27T18:57:45.231369+00:00",
+  "evaluated_at": "2026-09-27T18:51:11.643824+00:00",
   "test_set": "evaluation/test_set.json",
   "index_built_on": "2026-09-25",
   "n_questions": 14,
@@ -7,15 +7,15 @@
   "summary": {
     "retrieval_recall": 0.956,
     "retrieval_precision": 0.708,
-    "faithfulness": 0.83,
-    "answer_relevancy": 0.731
+    "faithfulness": 0.55,
+    "answer_relevancy": 0.729
   },
   "rows": [
     {
       "id": "jazz_weekend",
       "type": "recommendation",
       "question": "Quels concerts de jazz ce week-end ?",
-      "answer": "Aucun événement de jazz n'est prévu ce week-end (samedi 26 et dimanche 27 septembre 2026) dans le contexte fourni.\n\nVoici les événements de jazz les plus proches :\n- Concert de Jazz au CMA5 : Samedi 26 septembre 2026 à 18h00 (déjà passé dans la journée).\n- JASS Session / Jam Jazz : Vendredi 25 septembre 2026 à 22h30 (déjà passé).\n\nProchains concerts de jazz disponibles :\n- Michel Zenino & Ronnie Lynn Patterson, Cool jazz for quiet dreams au 38Riv : Dimanche 4 octobre 2026 à 19h30 et 21h30.\n- JASS Session / Jam Jazz : Vendredi 2 octobre 2026 à 22h30.",
+      "answer": "Concert de Jazz au CMA5\nSamedi 26 septembre 2026, 18h00\nConservatoire Municipal Gabriel Fauré, 75005 Paris\nGratuit — Entrée libre selon les places disponibles\n\nAucun autre concert de jazz n'est prévu ce week-end.",
       "contexts": [
         "Événement : Concert de Jazz au CMA5\nDates : Samedi 26 septembre, 18h00\nLieu : Conservatoire Municipal Gabriel Fauré, 75005 Paris\nTarif : Gratuit — Entrée libre selon les places disponibles.\nMots-clés : Concert, Enfants, Jeunes, Adultes\n\nArtistes :\n\nCecil L. Recchia, chant\n\nDavid Patrois, vibraphone\n\nPhilippe Aerts, contrebasse\n\nBenjamin Henocq, batterie\n\nVenez nombreux !\n\nLieu : Auditorium du CMA5 - 12 rue de Pontoise, 75000 Paris",
         "Événement : Michel Zenino & Ronnie Lynn Patterson, Cool jazz for quiet dreams au 38Riv\nDates : Dimanche 4 octobre, 19h30, 21h30\nLieu : 38Riv Jazz Club, 75004 Paris\nTarif : Payant — Tarif en ligne : de 24 à 27 euros Tarif sur place : de 27 à 30 euros.\nMots-clés : Concert, Tout public\n\nContrebassiste incontournable de la scène jazz française, Michel Zenino a construit une carrière riche de collaborations avec de grandes figures du jazz telles qu'Archie Shepp, Barney Wilen, Toots Thielemans, James Carter ou encore Eric Truffaz. Lauréat du Concours national de jazz de La Défense en 1988, il est reconnu pour la profondeur de son jeu, sa virtuosité et son sens de l'écoute, aussi bien sur scène qu'à travers son travail de pédagogue.",
@@ -36,14 +36,14 @@
       "ground_truth": "Ce week-end (26 et 27 septembre 2026), un concert de jazz gratuit a lieu le samedi 26 septembre à 18h au Conservatoire Municipal Gabriel Fauré (Paris 5e), entrée libre selon les places disponibles.",
       "retrieval_recall": 1.0,
       "retrieval_precision": 0.2,
-      "faithfulness": 0.556,
-      "answer_relevancy": 0.797
+      "faithfulness": 0.667,
+      "answer_relevancy": 0.834
     },
     {
       "id": "photo_expo_october",
       "type": "recommendation",
       "question": "Une exposition de photographie en octobre ?",
-      "answer": "Aucun événement du contexte ne correspond exactement à une exposition de photographie **ce week-end** (26-27 septembre 2026).\n\nVoici les expositions de photographie en **octobre 2026** :\n- Photographies japonaises de la Bibliothèque nationale de France. Scènes, signes, sensations\n  Dates : 29 septembre 2026 - 31 janvier 2027\n  Lieu : Bibliothèque François-Mitterrand – Galerie 1, 75013 Paris\n  Tarif : Payant — De 0 à 15 euros.\n\n- Remember Me\n  Dates : 7 octobre - 31 décembre\n  Lieu : Bourse de commerce - Pinault Collection, 75001 Paris\n  Tarif : Payant — De 0 à 15 euros.\n\n- L'être et le néon (se termine le 3 octobre)\n  Dates : 15 septembre - 3 octobre\n  Lieu : Carré de Baudouin, 75020 Paris\n  Tarif : Gratuit.",
+      "answer": "- Photographies japonaises de la Bibliothèque nationale de France. Scènes, signes, sensations\n  Dates : 29 septembre 2026 - 31 janvier 2027\n  Lieu : Bibliothèque François-Mitterrand – Galerie 1, 75013 Paris\n  Tarif : Payant — De 0 à 15 euros.\n\n- Remember Me\n  Dates : 7 octobre - 31 décembre 2026\n  Lieu : Bourse de commerce - Pinault Collection, 75001 Paris\n  Tarif : Payant — De 0 à 15 euros.",
       "contexts": [
         "Événement : L'être et le néon\nDates : 15 septembre - 3 octobre\nLieu : Carré de Baudouin, 75020 Paris\nTarif : Gratuit\nMots-clés : Art contemporain, Expo, Photo, Tout public\n\nActuellement commissaire et coordinatrice pour la Biennale de l’Image Tangible, elle s’attache à mettre en avant des pratiques photographiques qui repoussent les limites du médium, entre matérialité, processus et perception. Elle a également conçu l’exposition _Les Temps des Choses_ à la Galerie Plateforme, interrogeant le rapport entre image et temporalité à travers différentes approches de la photographie.\n\nElle travaille actuellement comme co-commissaire d'exposition générale pour le musée virtuel MuseAlps, un projet européen entre la France et l'Italie, dédié à la valorisation et à la mise en réseau du patrimoine artistique et culturel des Alpes.",
         "Événement : Photographies japonaises de la Bibliothèque nationale de France. Scènes, signes, sensations\nDates : 29 septembre 2026 - 31 janvier 2027\nLieu : Bibliothèque François-Mitterrand – Galerie 1, 75013 Paris\nTarif : Payant — De 0 à 15 euros.\nMots-clés : Expo, Photo, Tout public\n\nL’exposition en bref\n\nDès la fin des années 1960, la Bibliothèque nationale de France s’est imposée comme l’une des premières institutions occidentales à s’intéresser à la photographie japonaise moderne et contemporaine. Forte déjà d’un remarquable ensemble d’estampes japonaises des XVIIe au XIXe siècles, elle a progressivement élaboré une collection photographique exceptionnelle.",
@@ -65,14 +65,14 @@
       "ground_truth": "En octobre, l'exposition 'Photographies japonaises de la Bibliothèque nationale de France' est présentée à la Bibliothèque François-Mitterrand (Paris 13e) du 29 septembre 2026 au 31 janvier 2027, tarif de 0 à 15 euros. L'exposition gratuite 'L'être et le néon' au Carré de Baudouin (Paris 20e) se termine le 3 octobre.",
       "retrieval_recall": 1.0,
       "retrieval_precision": 0.4,
-      "faithfulness": 0.867,
-      "answer_relevancy": 0.873
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.762
     },
     {
       "id": "kids_workshop_wednesday",
       "type": "recommendation",
       "question": "Un atelier gratuit pour les enfants le mercredi ?",
-      "answer": "Aucun événement du contexte ne correspond exactement à votre demande pour un atelier gratuit pour les enfants **le mercredi en septembre 2026**.\n\nVoici les ateliers proches :\n- L'atelier du mercredi | À la manière de… (30 septembre 2026, 14h, Bibliothèque L'Heure joyeuse, gratuit) : pour enfants à partir de 5 ans, mais à 14h et non à 16h.\n- Le petit atelier (14 octobre 2026, 16h, Bibliothèque Marguerite Audoux, gratuit) : pour enfants de 5 à 8 ans, mais en octobre.\n- Atelier Fabrique à Brac (30 septembre 2026, 16h, Médiathèque James Baldwin, gratuit) : pour enfants et jeunes, mais le dernier mercredi du mois (pas le 30 septembre).",
+      "answer": "Aucun événement du contexte ne correspond à un atelier gratuit pour les enfants ce mercredi 25 septembre 2026.",
       "contexts": [
         "Événement : Le petit atelier\nDates : Mercredi 18 novembre, 16h00\nLieu : Bibliothèque Marguerite Audoux, 75003 Paris\nTarif : Gratuit — Par mail : bibliotheque.marguerite-audoux@paris.fr ou par téléphone : 01 44 78 55 20\nMots-clés : Enfants\n\nCrayons de couleur, pinceaux, ciseaux et tubes de colle… Le petit atelier, c'est, pour les enfants de 5 à 8 ans, l'occasion rêvée d'expérimenter des techniques de création en s'inspirant de livres variés aux illustrations étonnantes.\n\nPour les enfants de 5 à 8 ans.\n\nLa présence d'un adulte responsable est requise pour les enfants de moins de 7 ans.\n\nRendez-vous le mercredi 18/11 à 16h.",
         "Événement : Le petit atelier\nDates : Mercredi 16 décembre, 16h00\nLieu : Bibliothèque Marguerite Audoux, 75003 Paris\nTarif : Gratuit — Par mail : bibliotheque.marguerite-audoux@paris.fr ou par téléphone : 01 44 78 55 20\nMots-clés : Enfants\n\nCrayons de couleur, pinceaux, ciseaux et tubes de colle… Le petit atelier, c'est, pour les enfants de 5 à 8 ans, l'occasion rêvée d'expérimenter des techniques de création en s'inspirant de livres variés aux illustrations étonnantes.\n\nPour les enfants de 5 à 8 ans.\n\nLa présence d'un adulte responsable est requise pour les enfants de moins de 7 ans.\n\nRendez-vous le mercredi 16/12 à 16h.",
@@ -97,14 +97,14 @@
       "ground_truth": "Plusieurs ateliers gratuits pour enfants ont lieu le mercredi : 'Le petit atelier' à la Bibliothèque Marguerite Audoux (Paris 3e) les mercredis 14 octobre, 18 novembre et 16 décembre à 16h, sur inscription par mail ; 'L'atelier du mercredi' à la Bibliothèque L'Heure joyeuse (Paris 5e) certains mercredis du 30 septembre au 9 décembre ; et l'atelier 'Fabrique à Brac' à la Médiathèque James Baldwin (Paris 19e) certains mercredis, inscription sur place.",
       "retrieval_recall": 1.0,
       "retrieval_precision": 1.0,
-      "faithfulness": null,
-      "answer_relevancy": 0.9
+      "faithfulness": 0.0,
+      "answer_relevancy": 0.894
     },
     {
       "id": "halloween",
       "type": "recommendation",
       "question": "Quels événements autour d'Halloween ?",
-      "answer": "- La Grande journée Halloween\n  Dates : Samedi 31 octobre 2026, 10h30\n  Lieu : Bibliothèque Maurice Genevoix, 75018 Paris\n  Tarif : Gratuit — Réservation obligatoire\n\n- Melville fête Halloween\n  Dates : Samedi 31 octobre 2026, 10h00\n  Lieu : Médiathèque Jean-Pierre Melville, 75013 Paris\n  Tarif : Gratuit — Réservation conseillée\n\n- Fête Halloween à la médiathèque avec tes amis !\n  Dates : Samedi 31 octobre 2026, 18h00\n  Lieu : Médiathèque Violette Leduc, 75011 Paris\n  Tarif : Gratuit — Réservation obligatoire\n\n- Petites histoires pour se faire peur (mais pas trop quand même)\n  Dates : Samedi 31 octobre 2026, 10h30\n  Lieu : Bibliothèque Maurice Genevoix, 75018 Paris\n  Tarif : Gratuit — Réservation obligatoire\n\n- Graine d'artiste des petits, spéciale Halloween !\n  Dates : Samedi 31 octobre 2026, 10h30\n  Lieu : Bibliothèque Maurice Genevoix, 75018 Paris\n  Tarif : Gratuit — Réservation obligatoire",
+      "answer": "Aucun événement autour d'Halloween n'est prévu ce week-end (26-27 septembre 2026). Les événements Halloween ont lieu le samedi 31 octobre 2026.",
       "contexts": [
         "Événement : La Grande journée Halloween\nDates : Samedi 31 octobre, 10h30\nLieu : Bibliothèque Maurice Genevoix, 75018 Paris\nTarif : Gratuit — Réservation obligatoire par mail à bibliotheque.maurice-genevoix@paris.fr ou par téléphone au 01 46 07 35 05 ou enfin auprès des bibliothécaires sur place.\nMots-clés : Atelier, Enfants, Histoire, Tout public\n\n; Crédits : MG\n\nCinélloween\n\nEscape game maison hantée\n\nSpectacle Même pas peur ! à 16h\n\n![](https://cdn.paris.fr/qfapv4/2026/06/19/original-0e09f4dcb9ade9b06000eb093dd3de35.jpg)\n\n; Crédits : MG\n\nLe goûter horrifique, à 17h20\n\n![](https://cdn.paris.fr/qfapv4/2026/06/19/original-d39941e8005a31fe220f256f22553bd8.jpg)\n\n; Crédits : MG",
         "Événement : Melville fête Halloween\nDates : Samedi 31 octobre, 10h00\nLieu : Médiathèque Jean-Pierre Melville, 75013 Paris\nTarif : Gratuit — Réservation conseillée mais pas obligatoire\nMots-clés : Enfants, Tout public\n\nContes horrifiques et animations pour les petits et les grands.\n\nOn vous attend dans votre déguisement le plus effrayant !\n\nProgrammation à venir…",
@@ -131,14 +131,14 @@
       "ground_truth": "Pour les adultes : le cabaret burlesque Tease Tease Tease propose une édition spéciale Halloween au Cirque Electrique (Paris 20e) le jeudi 22 octobre à 21h (payant), et un jeu de loup-garou grandeur nature se joue au Secret de l'Île (Paris 4e) du 26 octobre au 1er novembre (35 euros). Le samedi 31 octobre, la chanteuse Melissa Lesnie donne un concert 'I Want to be Evil' au 38Riv Jazz Club (Paris 4e) à 15h et 17h (16 à 19 euros), et la Médiathèque Violette Leduc (Paris 11e) organise une fête Halloween à 18h pour les jeunes et adultes, gratuite sur réservation. Pour les enfants, le 31 octobre : la Grande journée Halloween à la Bibliothèque Maurice Genevoix (Paris 18e) à partir de 10h30, gratuite sur réservation ; Melville fête Halloween à la Médiathèque Jean-Pierre Melville (Paris 13e) à 10h ; et un ciné-spectacle spécial Halloween à la Fondation Jérôme Seydoux-Pathé (Paris 13e) à 14h30 (8 euros).",
       "retrieval_recall": 0.42857142857142855,
       "retrieval_precision": 0.6,
-      "faithfulness": 0.95,
-      "answer_relevancy": 0.75
+      "faithfulness": 0.333,
+      "answer_relevancy": 0.74
     },
     {
       "id": "history_walk",
       "type": "recommendation",
       "question": "Une balade urbaine sur l'histoire de Paris ?",
-      "answer": "- Le Paris gallo-romain : au temps de Lutèce\n  Dates : 19 septembre et 24 octobre 2026\n  Lieu : Paris, 75004\n  Tarif : 18€/pers\n\n- Les légendes du Paris maudit 2\n  Dates : 25 septembre 2026, 19h00\n  Lieu : Paris, 75004\n  Tarif : 21€/pers\n\n- Les légendes du Paris maudit : visite nocturne\n  Dates : 27 août - 10 octobre 2026\n  Lieu : Paris, 75004\n  Tarif : 21€/pers\n\n- Surprenant 7e arrondissement\n  Dates : 3 octobre 2026, 11h00\n  Lieu : Paris, 75004\n  Tarif : 18€/pers\n\n- Le Paris de la Révolution - visite guidée\n  Dates : 4 octobre 2026, 15h00\n  Lieu : Paris, 75001\n  Tarif : 21€/pers",
+      "answer": "- Le Paris gallo-romain : au temps de Lutèce\n  Dates : 19 septembre et 24 octobre 2026\n  Lieu : Paris, 75004\n  Tarif : 18€/pers\n\n- Les légendes du Paris maudit : visite nocturne\n  Dates : 27 août - 10 octobre 2026\n  Lieu : Paris, 75004\n  Tarif : 21€/pers\n\n- Les légendes du Paris Maudit 2\n  Dates : 25 septembre 2026, 19h00\n  Lieu : Paris, 75004\n  Tarif : 21€/pers\n\n- Le Paris de la Révolution - visite guidée\n  Dates : 4 octobre 2026, 15h00\n  Lieu : Paris, 75001\n  Tarif : 21€/pers\n\n- Surprenant 7eme arrondissement\n  Dates : 3 octobre 2026, 11h00\n  Lieu : Paris, 75007\n  Tarif : 18€/pers",
       "contexts": [
         "Événement : Le Paris gallo-romain : au temps de Lutèce\nDates : 19 septembre et 24 octobre\nLieu : Paris, 75004 Paris\nTarif : Payant — 18€/pers\nMots-clés : Balade urbaine, Histoire, Loisirs, Tout public\n\nAu départ de la Seine, nous emprunterons le « Cardo Maximus », première voie romaine, et cheminerons ensemble à la découverte du Panthéon, ancien Forum et cœur battant de la ville gallo-romaine autour duquel la ville fut construite.\n\nNous bifurquerons ensuite place de la Sorbonne vers les Thermes de Cluny à la découverte de la vie quotidienne des habitants de Lutèce.\n\nNotre déambulation se terminera aux Arènes de Lutèce, dont nous évoquerons le rôle lorsque la ville et ses habitants fuirent les hordes de barbares moustachus casqués armés de haches et bien déterminés à en découdre…",
         "Événement : Les légendes du Paris Maudit 2\nDates : Vendredi 25 septembre, 19h00\nLieu : Paris, 75004 Paris\nTarif : Payant — 21€/pers\nMots-clés : Balade urbaine, Histoire, Loisirs, Jeunes, Adultes\n\nVous traverserez le Sentier des sorcières et des empoisonneuses, arpenterez le Val d’Amour de la rue Saint-Denis et ses filles de joie et irez vous perdre dans l’antique Cour des Miracles, royaume des mendiants et des voleurs. Votre périple vous mènera ensuite vers le Ventre de Paris et ses Halles malfamées où se côtoient clochards, bourreaux et astrologues. Direction le cœur du pouvoir royal, le palais du Louvre, où vous attendent les fantômes de la nuit parisienne la plus sanglante de l’histoire, la nuit de la Saint-Barthélemy.\n\nNouveauté inédite, cette visite est en musique ! Bandes originales de films, ambiances, sons étranges, et parfois même quelques voix et répliques historiques vous seront diffusés en direct dans les lieux qui ont été le théâtre de ces intrigues.",
@@ -163,14 +163,14 @@
       "ground_truth": "Plusieurs balades urbaines payantes sont proposées : 'Le Paris gallo-romain : au temps de Lutèce' le 24 octobre (18 euros), 'Le Paris de la Révolution' le dimanche 4 octobre à 15h (21 euros), 'Surprenant 7e arrondissement' le samedi 3 octobre à 11h (18 euros), et 'Les légendes du Paris maudit', visite nocturne jusqu'au 10 octobre (21 euros).",
       "retrieval_recall": 1.0,
       "retrieval_precision": 1.0,
-      "faithfulness": 0.667,
-      "answer_relevancy": 0.654
+      "faithfulness": 0.7,
+      "answer_relevancy": 0.66
     },
     {
       "id": "dance_november",
       "type": "recommendation",
       "question": "Un spectacle de danse contemporaine en novembre ?",
-      "answer": "Aucun événement du contexte ne correspond exactement à votre demande pour novembre 2026.\n\nVoici les événements de danse contemporaine les plus proches :\n- Répétition publique + projection : Aurélie Berland au Regard du Cygne (Lundi 30 novembre 2026, 16h00, Le Regard du Cygne, 75020 Paris, Gratuit) : Danse contemporaine et art contemporain, avec une réflexion sur l'histoire de la danse et une projection documentaire.\n- Spectacle « Trad Now » - Sun-A Lee x Kim Joohong / Yunbyul Ballet Company (3 - 5 novembre 2026, Centre Culturel Coréen, 75008 Paris, Gratuit) : Danse contemporaine et spectacle musical, mais centré sur des influences traditionnelles coréennes.",
+      "answer": "Aucun événement de danse contemporaine n'est prévu en novembre 2026 dans le contexte fourni.",
       "contexts": [
         "Événement : Répétition publique + projection : Aurélie Berland au Regard du Cygne\nDates : Lundi 30 novembre, 16h00\nLieu : Le Regard du Cygne, 75020 Paris\nTarif : Gratuit\nMots-clés : Art contemporain, Danse, Festival, Jeunes, Adultes\n\nRépétition publique : _L'une d'entre elles_, Aurélie Berland - Compagnie Gramma-\n\nsuivi de la projection du film _Quand le corps se souvient_, de Benjamin Silvestre\n\nLundi 30 novembre 2026\nà 16:00\n\nPour cette répétition publique, la chorégraphe Aurélie Berland amène au plateau ses recherches sur l’histoire de la danse contemporaine et l’influence des grandes figures modernes sur celle-ci. _L’une d’entre elles_ imagine l’évolution de quatre danseur·euse·s imprégné·e·s du travail de l’américain Alwin Nikolaïs, et la manière dont cette influence chorégraphique les traverse. _Quand le corps se souvient_, film documentaire, explore quant à lui ce que peut être un processus de recréation chorégraphique impliquant un dialogue entre transmission orale et écrite.\n\nDurée 1h15",
         "Événement : Spectacle de danse : \"Comme de choses vraies\" d'Ikram Benchrif et Paul Girard\nDates : Mercredi 30 septembre, 20h00\nLieu : Atelier de Paris / CDCN, 75012 Paris\nTarif : Gratuit — Événement gratuit sur réservation. Rendez-vous sur le site internet de l'Atelier de Paris ou par téléphone au 01 417 417 07\nMots-clés : Danse, Solidarité, Jeunes, Adultes\n\nSur un plateau, sept corps tentent une rencontre. Avec humour, violence et interrogations philosophiques, ils déroulent des tableaux vivants, une succession d’actions simples révélant des paysages rêvés ou perdus. _Comme de choses vraies_ est un conte chorégraphique documentaire où les fées sont des hommes ayant vécu sous des tentes, entre un mois et 19 ans. Ces interprètes, à la fois témoins et fabulateurs, tentent de donner à voir la maison de leurs corps. Cette pièce est née d’une rencontre dans le monde et d’un désir de fable",
@@ -192,14 +192,14 @@
       "ground_truth": "En novembre, le Centre Culturel Coréen (Paris 8e) présente gratuitement le spectacle de danse 'Trad Now' du 3 au 5 novembre, et Le Regard du Cygne (Paris 20e) propose une répétition publique et projection avec Aurélie Berland le lundi 30 novembre à 16h, gratuit.",
       "retrieval_recall": 1.0,
       "retrieval_precision": 0.4,
-      "faithfulness": 0.818,
-      "answer_relevancy": 0.0
+      "faithfulness": 0.0,
+      "answer_relevancy": 0.863
     },
     {
       "id": "science_talk_free",
       "type": "recommendation",
       "question": "Une conférence scientifique gratuite ?",
-      "answer": "Les Échappées inattendues du CNRS : La nature, ingénieure de notre futur\nDates : 26 septembre 2026\nLieu : Médiathèque Marguerite Duras, 75020 Paris\nTarif : Gratuit\n\nS'inspirer des plantes et de leurs propriétés imperméables, conférence de Jérôme Fresnais\nDates : 3 octobre 2026, 15h30\nLieu : Bibliothèque Andrée Chedid, 75015 Paris\nTarif : Gratuit\n\nTable ronde \"Sciences et Design : à la rencontre du corail\"\nDates : 10 octobre 2026, 15h00\nLieu : Médiathèque Virginia Woolf, 75013 Paris\nTarif : Gratuit\n\nL'art et la science du goût : une conférence de Christophe Lavelle\nDates : 17 novembre 2026, 19h00\nLieu : Bibliothèque Robert Sabatier, 75018 Paris\nTarif : Gratuit\n\nLes Échappées inattendues du CNRS : Éveillez vos sens\nDates : 2 - 4 octobre 2026\nLieu : Musée des arts et métiers, 75003 Paris\nTarif : Gratuit",
+      "answer": "Les échappées inattendues du CNRS : La nature, ingénieure de notre futur\nSamedi 26 septembre 2026, 16h00\nMédiathèque Marguerite Duras, 75020 Paris\nGratuit — Réservation : https://bibliocite.fr/evenements/ ou 01 44 78 80 50",
       "contexts": [
         "Événement : Les Échappées inattendues du CNRS : Éveillez vos sens\nDates : 2 - 4 octobre\nLieu : Musée des arts et métiers, 75003 Paris\nTarif : Gratuit\nMots-clés : Atelier, Conférence, Sciences, Jeunes, Adultes\n\nUn thème, trois éclairages\nUn rendez-vous, trois mini-conférences de 10 minutes, trois points de vue apportent des éclairages complémentaires sur une même thématique tout en croisant les regards de chercheurs et chercheuses issus de différents domaines.\n\n!planche apéro avec fromage, charcuterie, olives et raisins\n\n; Crédits : © Melissa Walker Horn - unsplash\n\nSamedi 3 octobre\n\nConférences-démos, espace Science en scène\n\nFaites vous-même l’expérience de la science\nAssistez en direct à une expérience scientifique ! Tout en vous exposant les explications relatives à leur démarche, les scientifiques réalisent sous vos yeux les manipulations et démonstrations qui s’y rapportent. Une incursion dans leur quotidien qui dévoile les dessous de la recherche à l’œuvre.",
         "Événement : S'inspirer des plantes et de leurs propriétés imperméables, conférence de Jérôme Fresnais\nDates : Samedi 3 octobre, 15h30\nLieu : Bibliothèque Andrée Chedid, 75015 Paris\nTarif : Gratuit\nMots-clés : Conférence, Adultes\n\nEntrée libre dans la limite des places disponibles",
@@ -224,14 +224,14 @@
       "ground_truth": "Plusieurs conférences scientifiques gratuites sont proposées : les Échappées inattendues du CNRS au Musée des arts et métiers (Paris 3e) du 2 au 4 octobre et à la Médiathèque Marguerite Duras (Paris 20e) le samedi 26 septembre à 16h ; une conférence sur les plantes et leurs propriétés imperméables à la Bibliothèque Andrée Chedid (Paris 15e) le samedi 3 octobre à 15h30 ; une table ronde 'Sciences et Design : à la rencontre du corail' à la Médiathèque Virginia Woolf (Paris 13e) le samedi 10 octobre à 15h ; et 'L'art et la science du goût' par Christophe Lavelle à la Bibliothèque Robert Sabatier (Paris 18e) le mardi 17 novembre à 19h.",
       "retrieval_recall": 1.0,
       "retrieval_precision": 1.0,
-      "faithfulness": 0.75,
-      "answer_relevancy": 0.733
+      "faithfulness": 0.778,
+      "answer_relevancy": 0.767
     },
     {
       "id": "christmas_december",
       "type": "recommendation",
       "question": "Quels marchés de Noël ou événements de Noël en décembre ?",
-      "answer": "Aucun événement de Noël ou marché de Noël n'est prévu pour le week-end du 26-27 septembre 2026.\n\nVoici les événements de Noël en décembre 2026 :\n\n- Marché de Noël Notre Dame\nDates : 26 novembre - 27 décembre\nLieu : Square René Viviani, 75005 Paris\nTarif : Gratuit\n\n- Klin d’œil, 5e édition spéciale Noël du marché de créateur·rices au Carreau du Temple\nDates : 12 et 13 décembre\nLieu : Le Carreau du Temple, 75003 Paris\nTarif : Gratuit — Entrée libre\n\n- Grand concert de chants traditionnels de Noël\nDates : 21 et 23 décembre\nLieu : Église de La Madeleine, 75008 Paris\nTarif : Payant — De 20 à 70 euros\n\n- Concert de Noël\nDates : Dimanche 6 décembre, 11h00\nLieu : Théâtre du Châtelet, 75001 Paris\nTarif : Payant — De 10 à 18 euros",
+      "answer": "Marché de Noël Notre Dame\nDates : 26 novembre - 27 décembre\nLieu : Square René Viviani, 75005 Paris\nTarif : Gratuit\n\nKlin d’œil, 5e édition spéciale Noël du marché de créateur·rices au Carreau du Temple\nDates : 12 et 13 décembre\nLieu : Le Carreau du Temple, 75003 Paris\nTarif : Gratuit — Entrée libre\n\nGrand concert de chants traditionnels de Noël\nDates : 21 et 23 décembre\nLieu : Église de La Madeleine, 75008 Paris\nTarif : Payant — De 20 à 70 euros\n\nConcert de Noël\nDates : Dimanche 6 décembre, 11h00\nLieu : Théâtre du Châtelet, 75001 Paris\nTarif : Payant — De 10 à 18 euros",
       "contexts": [
         "Événement : Marché de Noël Notre Dame\nDates : 26 novembre - 27 décembre\nLieu : Square René Viviani, 75005 Paris\nTarif : Gratuit\nMots-clés : Atelier, Expo, Gourmand, Tout public\n\nLe Noël des ateliers français s'installe à 2 pas de la Cathédrale Notre Dame.\n\nPour un Noël 100% français porté par 40 exposants sélectionnés.",
         "Événement : Klin d’œil, 5e édition spéciale Noël du marché de créateur·rices au Carreau du Temple\nDates : 12 et 13 décembre\nLieu : Le Carreau du Temple, 75003 Paris\nTarif : Gratuit — Entrée libre\nMots-clés : Salon, Tout public\n\n95 créateur·rices français·es, des ateliers DIY et tant d’autres surprises, le tout en musique : Klin d’œil dévoile ses fidèles et nouvelles découvertes dans le champ de l’artisanat d’art. Mode, déco, kids, beauté, print et épicerie… Des cadeaux uniques, faits main, en petite série et qui ont une âme ! Entre les chemises, robes et tuniques vitaminées de Habit Béton, les céramiques uniques de Marie Yaé ou encore les huiles d’olive de Sicile de Cédric Casanova, il y en a pour tous les goûts. Des ateliers _Do It Yourself_ pour petit·es et grand·es, comme la sérigraphie du tote bag emblématique, vous permettent de repartir les bras chargés de cadeaux. C’est LE marché de Noël de créateurs·ices à ne pas rater !\n\n_Marché accessible aux personnes malentendantes_",
@@ -256,14 +256,14 @@
       "ground_truth": "En décembre : le Marché de Noël Notre Dame au square René Viviani (Paris 5e) du 26 novembre au 27 décembre, gratuit ; le marché de créateurs Klin d'œil spécial Noël au Carreau du Temple (Paris 3e) les 12 et 13 décembre, entrée libre ; un concert de Noël au Théâtre du Châtelet le dimanche 6 décembre à 11h (10 à 18 euros) ; un grand concert de chants traditionnels de Noël à l'église de la Madeleine les 21 et 23 décembre (20 à 70 euros) ; et un atelier bricolages de Noël à la Médiathèque Marguerite Yourcenar (Paris 15e) le samedi 19 décembre à 10h30, gratuit.",
       "retrieval_recall": 1.0,
       "retrieval_precision": 1.0,
-      "faithfulness": 0.929,
-      "answer_relevancy": 0.782
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.779
     },
     {
       "id": "classical_church",
       "type": "recommendation",
       "question": "Un concert de musique classique dans une église ?",
-      "answer": "- Les 4 saisons de Vivaldi, Ave Maria et célèbres concertos\n  Dates : 30 septembre - 15 décembre\n  Lieu : Église de La Madeleine, 75008 Paris\n  Tarif : Payant — De 20 à 60 euros.\n\n- Requiem de Fauré, 3ème symphonie de Beethoven\n  Dates : Lundi 28 décembre, 20h45\n  Lieu : Église de la Madeleine, 75008 Paris\n  Tarif : Payant — Prestige 60 €, Catégorie 1 40€, Catégorie 2 30€, Catégorie 3 20€ (étudiants, chômeurs : Catégorie 1 30€, Catégorie 2 20€).\n\n- Boléro de Ravel / Casse Noisette / Le Lac des Cygnes / L’Arlésienne de Bizet (extraits)\n  Dates : Mercredi 30 décembre, 20h45\n  Lieu : Église Saint-Sulpice, 75006 Paris\n  Tarif : Payant — Prestige 60 €, Catégorie 1 40€, Catégorie 2 30€ (étudiants, chômeurs : Catégorie 1 30€, Catégorie 2 20€).\n\n- Requiem de Mozart & Boléro de Ravel\n  Dates : Vendredi 23 octobre, 20h45\n  Lieu : Église Saint-Germain-des-Prés, 75006 Paris\n  Tarif : Payant — De 20 à 60 euros.\n\n- Musique Baroque Allemande\n  Dates : Dimanche 18 octobre, 15h30\n  Lieu : Église Notre-Dame-de-la-Salette, 75015 Paris\n  Tarif : Payant — Don de 8€ par personne (espèces uniquement).",
+      "answer": "Les 4 saisons de Vivaldi, Ave Maria et célèbres concertos\nDates : 30 septembre - 15 décembre 2026\nLieu : Église de La Madeleine, 75008 Paris\nTarif : Payant — De 20 à 60 euros.\n\nMusique Baroque Allemande\nDates : Dimanche 18 octobre 2026, 15h30\nLieu : Église Notre Dame de la Salette, 75015 Paris\nTarif : Payant — Don respectueux de 8€ par personne (espèces uniquement).",
       "contexts": [
         "Événement : Les 4 saisons de Vivaldi, Ave Maria et célèbres concertos\nDates : 30 septembre - 15 décembre\nLieu : Église de La Madeleine, 75008 Paris\nTarif : Payant — De 20 à 60 euros.\nMots-clés : Concert, Adultes\n\nDe la musique baroque à la musique contemporaine, les programmes sont variés, le répertoire est à la fois symphonique et choral, l’orchestre s’associant aux chœurs départementaux et régionaux.\n\nGrâce à la collaboration avec différents chefs, les musiciens abordent un répertoire très riche en élargissant leur palette d’interprétation. Ils sont tous issus des grands conservatoires français, certains appartenant à un orchestre national.\n\nDu quatuor à cordes à l’orchestre symphonique, en passant par l’ensemble de cuivres, l’orchestre élargit toujours son audience en modulant sa composition. La formation « cordes » se produit dans les plus prestigieuses églises de Paris, ce qui permet au public de découvrir un patrimoine architectural très riche.",
         "Événement : Requiem de Fauré, 3ème symphonie de Beethoven\nDates : Lundi 28 décembre, 20h45\nLieu : Eglise de la Madeleine, 75008 Paris\nTarif : Payant — Prestige 60 € Catégorie 1 40€, Catégorie 2 30€, Catégorie 3 20€ Tr (étudiants, chômeurs) Catégorie 1 : 30€, Catégorie 2 : 20€,\nMots-clés : Concert, Festival, Tout public\n\nRequiem de Gabriel Fauré\n\n3ème symphonie de Beethoven\n\nLe Requiem de Fauré en ré mineur op. 48 de Gabriel Fauré, écrit en pleine maturité, est l'une de ses œuvres les plus connues.\n\nElle fut créée le 16 janvier 1888 en l'église de la Madeleine. Cette messe pour les défunts est considérée comme l’un des chefs-d'œuvre de Fauré et l'un des plus beaux requiem du XIX siècle. L'ouvrage, dont l'écriture est très personnelle, contient plusieurs morceaux que l'on peut ranger parmi les plus émouvants de la musique chorale occidentale.\n\nLa _Symphonie n° 3_ est construite selon une progression où le rythme joue le premier rôle, davantage que la mélodie, donnant à l’ensemble de l’œuvre un caractère dansant et une vigueur certaine.",
@@ -288,14 +288,14 @@
       "ground_truth": "Plusieurs concerts classiques payants ont lieu dans des églises : Les 4 saisons de Vivaldi, Ave Maria et célèbres concertos à l'église de la Madeleine (Paris 8e) du 30 septembre au 15 décembre (20 à 60 euros) ; le Requiem de Mozart et le Boléro de Ravel à l'église Saint-Germain-des-Prés le vendredi 23 octobre à 20h45 (20 à 60 euros) ; de la musique baroque allemande à l'église Notre-Dame de la Salette (Paris 15e) le dimanche 18 octobre à 15h30 ; et le Requiem de Fauré avec la 3e symphonie de Beethoven à la Madeleine le lundi 28 décembre à 20h45.",
       "retrieval_recall": 1.0,
       "retrieval_precision": 1.0,
-      "faithfulness": 1.0,
-      "answer_relevancy": 0.781
+      "faithfulness": 0.5,
+      "answer_relevancy": 0.748
     },
     {
       "id": "film_festival_autumn",
       "type": "recommendation",
       "question": "Un festival de cinéma cet automne ?",
-      "answer": "Aucun événement du contexte ne correspond exactement à un festival de cinéma cet automne (septembre à décembre 2026).\n\nLes événements les plus proches sont :\n- Festival de cinéma européen SABORD (28 et 30 septembre 2026, Centre Paris Anim' Jacques Bravo, Gratuit)\n- Mon Premier Festival (21 au 27 octobre 2026, plusieurs lieux, Gratuit ou payant selon les séances)",
+      "answer": "Aucun festival de cinéma n'est prévu pour ce week-end (26-27 septembre 2026).\n\nPour cet automne (septembre à décembre 2026), voici les options :\n- Festival de cinéma européen SABORD : 28 et 30 septembre 2026, Centre Paris Anim' Jacques Bravo, 75009 Paris, Gratuit\n- Mon Premier Festival : 21 au 27 octobre 2026 (plusieurs dates et lieux, Enfants)",
       "contexts": [
         "Événement : Les racontines font leur cinéma\nDates : 23 et 27 octobre\nLieu : Cinéma des Cinéastes, 75017 Paris\nTarif : Gratuit\nMots-clés : Ecrans, Enfants\n\n_Mercredi 27 octobre à 10h15 :_ retrouvez-nous au Cinéma des cinéastes pour quelques lectures joyeuses avant le visionnage des 7 courts-métrages de la thématique \"Dans tous les sens\"\n\n_\\*textes du programme officiel_\n\nMon premier festival\n\n_Mon premier Festival, initié par la Ville de Paris et organisé par l'association Enfances au Cinéma, se déroulera cette année du mercredi 21 au vendredi 27 octobre 2026_",
         "Événement : Festival de cinéma européen SABORD\nDates : 28 et 30 septembre\nLieu : Centre Paris Anim' Jacques Bravo, 75009 Paris\nTarif : Gratuit\nMots-clés : Ecrans, Festival, Tout public\n\nLa programmation, haute en couleurs, propose des événements gratuits et ouverts à tous·tes : des projections de courts et longs-métrages français et allemands, une exposition, des tables rondes autour du cinéma européen ou encore des ateliers participatifs. Le festival invite ainsi chacun·e à réfléchir aux lignes de tension qui traversent nos parcours individuels et nos sociétés contemporaines à travers le cinéma.\n\nCrédit visuel : @ Isabel del Real",
@@ -319,14 +319,14 @@
       "ground_truth": "Cet automne, le festival de cinéma européen SABORD a lieu les 28 et 30 septembre au Centre Paris Anim' Jacques Bravo (Paris 9e), gratuit. Pour les enfants, 'Mon Premier Festival' se tient du 17 au 24 octobre à la Bibliothèque François Villon (Paris 10e) et les 21 et 23 octobre à la Bibliothèque Saint-Eloi (Paris 12e), et 'Les racontines font leur cinéma' les 23 et 27 octobre au Cinéma des Cinéastes (Paris 17e), gratuit.",
       "retrieval_recall": 1.0,
       "retrieval_precision": 0.8,
-      "faithfulness": 0.75,
-      "answer_relevancy": 0.741
+      "faithfulness": 0.875,
+      "answer_relevancy": 0.775
     },
     {
       "id": "sport_sunday_free",
       "type": "recommendation",
       "question": "Des activités sportives gratuites le dimanche ?",
-      "answer": "- Paris sport dimanches : Remise en forme au Parc Georges Brassens\nDates : 27 septembre 2026 - 4 juillet 2027, les dimanches\nLieu : Parc Georges Brassens, 75015 Paris\nTarif : Gratuit\nDurée : 10h-12h\n\n- Paris sport dimanches : Remise en forme au Parc André Citroën\nDates : 27 septembre 2026 - 4 juillet 2027, les dimanches\nLieu : Parc André Citroën, 75015 Paris\nTarif : Gratuit\nDurée : 10h-12h\n\n- Paris sport dimanches : Football et renforcement musculaire au TEP Angélique Duchemin\nDates : 27 septembre 2026 - 4 juillet 2027, les dimanches\nLieu : TEP Angélique Duchemin, 75020 Paris\nTarif : Gratuit\nDurée : 2h (horaire non précisé)\n\n- Paris sport dimanches : Remise en forme au Parc Montsouris\nDates : 27 septembre 2026 - 4 juillet 2027, les dimanches\nLieu : Parc Montsouris, 75014 Paris\nTarif : Gratuit\nDurée : 10h-12h\n\n- Paris Sportives : Multisports avec l'association Meilleur qu’Hier\nDates : 23 août 2026 - 27 décembre 2026, les dimanches (hors vacances scolaires)\nLieu : Centre Sportif Angélique Duchemin, 75020 Paris\nTarif : Gratuit\nDurée : 12h-14h",
+      "answer": "Paris sport dimanches : Remise en forme au Parc Georges Brassens\nDimanche 27 septembre 2026, 10h-12h\nParc Georges Brassens, 75015 Paris\nGratuit\n\nParis sport dimanches : Remise en forme au Parc André Citroën\nDimanche 27 septembre 2026, 10h-12h\nParc André Citroën, 75015 Paris\nGratuit\n\nParis sport dimanches : Football et renforcement musculaire au TEP Angélique Duchemin (ex- Amandiers)\nDimanche 27 septembre 2026, 10h-12h\nTEP Angélique Duchemin (ex- Amandiers), 75020 Paris\nGratuit\n\nParis sport dimanches : Remise en forme au Parc Montsouris\nDimanche 27 septembre 2026, 10h-12h\nParc Montsouris, 75014 Paris\nGratuit\n\nParis Sportives : Multisports avec l'association Meilleur qu’Hier\nDimanche 27 septembre 2026, 12h-14h\nCentre Sportif Angélique Duchemin, 75020 Paris\nGratuit",
       "contexts": [
         "Événement : Paris sport dimanches : Remise en forme au Parc Georges Brassens\nDates : 27 septembre 2026 - 4 juillet 2027, les dimanches\nLieu : Parc Georges Brassens, 75015 Paris\nTarif : Gratuit\nMots-clés : Santé, Sport, Tout public\n\nAvant votre brunch ou votre déjeuner du dimanche, une brève session sportive est recommandée ! Paris Sport Dimanches est ouvert à tou·te·s que vous veniez seul·e, en groupe ou en famille. L'accès est gratuit et ne nécessite aucune inscription préalable. Rendez-vous simplement à l'un des points de rassemblement pour une séance sportive d'une heure, de 10h à 12h, le dimanche.\n\nVenez suivre une activité de remise en forme tous les dimanches au parc Georges Brassens (15e) : séance en extérieur.\n\nConseil : venez avec vos affaires de sport, une bouteille d'eau, une serviette et votre bonne humeur.\n\nInscription\n\nSans inscription préalable, rendez-vous directement sur l'un de nos créneaux Paris Sport Dimanches, dans la limite des places disponibles.\n\nCapacité d'accueil : 24 personnes",
         "Événement : Paris sport dimanches : Remise en forme au Parc André Citroën\nDates : 27 septembre 2026 - 4 juillet 2027, les dimanches\nLieu : Parc André Citroën, 75015 Paris\nTarif : Gratuit\nMots-clés : Santé, Sport, Tout public\n\nAvant votre brunch ou votre déjeuner du dimanche, une brève session sportive est recommandée ! Paris Sport Dimanches est ouvert à tous que vous veniez seul, en groupe ou en famille. L'accès est gratuit et ne nécessite aucune inscription préalable. Rendez-vous simplement à l'un des points de rassemblement pour une séance sportive de deux heures, de 10h à 12h, le dimanche.\n\nVenez suivre une activité de remise en forme tous les dimanches au parc André Citroën (15e) : séance en extérieur.\n\nConseil : venez avec vos affaires de sport, une bouteille d'eau, une serviette et votre bonne humeur.\n\nInscriptions\n\nSans inscription préalable, rendez-vous directement sur l'un de nos créneaux Paris Sport Dimanches, dans la limite des places disponibles.\n\nCapacité d'accueil : 24 personnes",
@@ -351,14 +351,14 @@
       "ground_truth": "Le programme gratuit 'Paris sport dimanches' propose des séances de remise en forme tous les dimanches à partir du 27 septembre au Parc Georges Brassens et au Parc André Citroën (Paris 15e), au Parc Montsouris (Paris 14e), ainsi que du football et du renforcement musculaire au TEP Angélique Duchemin (Paris 20e). L'association Meilleur qu'Hier propose aussi du multisports gratuit le dimanche au Centre Sportif Angélique Duchemin jusqu'au 27 décembre.",
       "retrieval_recall": 1.0,
       "retrieval_precision": 1.0,
-      "faithfulness": 1.0,
-      "answer_relevancy": 0.767
+      "faithfulness": 0.933,
+      "answer_relevancy": 0.719
     },
     {
       "id": "teen_theatre",
       "type": "recommendation",
       "question": "Une pièce de théâtre pour adolescents ?",
-      "answer": "Aucun événement du contexte ne correspond exactement à une pièce de théâtre **uniquement** pour adolescents.\n\nLes événements les plus proches :\n- **24 Place Beaumarchais** (30 octobre - 7 novembre, Théâtre de la Concorde) : Théâtre pour **jeunes et adultes**, avec une parole vive et plurilingue.\n- **Que jeunesse se raconte** (8-9 décembre, Théâtre de la Concorde) : Spectacle avec des **jeunes** (Mission Locale), mais aussi ouvert aux **adultes**.\n- **Stage de théâtre Automne 2026** (26-31 octobre, Salles Saint-Roch) : Stage pour **jeunes et adultes**, axé sur l’improvisation et la création.\n- **Un petit jeu sans conséquences** (28 août - 8 novembre, À LA FOLIE THEATRE) : Comédie pour **jeunes et adultes**, centrée sur les relations et l’humour.",
+      "answer": "- QUAND J'ETAIS VIEILLE - une rencontre au coin de la ride\nDates : 4 - 7 novembre 2026\nLieu : Théâtre Douze, 75012 Paris\nTarif : 9€ (tarif réduit)\nMots-clés : Enfants, Théâtre\n\n- 24 Place Beaumarchais\nDates : 30 octobre - 7 novembre 2026\nLieu : Théâtre de la Concorde, 75008 Paris\nTarif : 8 à 15€\nMots-clés : Théâtre, Jeunes",
       "contexts": [
         "Événement : 24 Place Beaumarchais\nDates : 30 octobre - 7 novembre\nLieu : Théâtre de la Concorde, 75008 Paris\nTarif : Gratuit sous condition — 8 à 15€\nMots-clés : Théâtre, Jeunes, Adultes\n\nÉcrit par l’autrice Adèle Gascuel à partir de son histoire, le texte restitue une parole vive, directe, profondément incarnée. On y croise la langue du quartier, le stand-up, le rap, l’arabe marocain, la langue de la prière, mais aussi Molière et Shakespeare. Cette pluralité de langues et de registres compose un théâtre au plus près d’une vie, loin des clichés sur la banlieue comme des récits de réussite exemplaires et tout tracés.",
         "Événement : QUAND J'ETAIS VIEILLE - une rencontre au coin de la ride\nDates : 4 - 7 novembre\nLieu : Théâtre Douze, 75012 Paris\nTarif : Payant — Tarif plein : 12 euros Tarif réduit : 9 euros Tarif groupe / périscolaire : 8 euros / personne Tarif scolaire : 6 euros / enfant\nMots-clés : Enfants, Solidarité, Théâtre\n\nDu 4 au 7 novembre 2026\n\nSéances : Mercredi 4 à 14h30 et Samedi 7 à 16h\n\nSéances scolaires : Jeudi 5 à 10h et à 14h30 - Vendredi 6 à 10h\n\nDurée : 55 mn - A partir de 7 ans\n\n\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\n\nQUAND J'ETAIS VIEILLE\n\n_Théâtre sonore, gestuel et marionnette_\n\nSelma est une enfant de 10 ans, elle est timide, un peu seule, elle dessine le quartier dans lequel elle vient d’emménager. Elle a les cheveux afros, elle aime le hip hop et fait de la trottinette.\n\nGeneviève est une femme de 90 ans, elle habite seule dans une petite maison dans laquelle elle a grandi, après la seconde guerre mondiale, avec sa grand-mère, dans une petite ville rurale qui s'est transformée en une agglomération urbaine. Elle a les cheveux blancs, elle aime l'accordéon et fait du ping-pong.",
@@ -381,14 +381,14 @@
       "ground_truth": "Le Théâtre de la Concorde (Paris 8e) propose '24 Place Beaumarchais' du 30 octobre au 7 novembre (8 à 15 euros) et 'Que jeunesse se raconte' les 8 et 9 décembre (8 à 20 euros), tous deux destinés aux jeunes et adultes. Un stage de théâtre pour jeunes et adultes a aussi lieu du 26 au 31 octobre aux Salles Saint-Roch (Paris 1er).",
       "retrieval_recall": 1.0,
       "retrieval_precision": 0.6,
-      "faithfulness": 0.923,
-      "answer_relevancy": 0.774
+      "faithfulness": 0.917,
+      "answer_relevancy": 0.722
     },
     {
       "id": "wagner_no_match",
       "type": "no_match",
       "question": "Y a-t-il un opéra de Wagner ce mois-ci ?",
-      "answer": "Aucun événement du contexte ne propose un opéra de Wagner en novembre 2026.\n\nLes événements musicaux classiques les plus proches sont :\n- **Nuits transfigurées** (Lundi 16 novembre, 20h00, Théâtre du Châtelet, 75001 Paris) : Concert centré sur la musique autrichienne (Haydn, Mozart, Schoenberg).\n- **Requiem de Verdi** (Samedi 7 novembre, 20h45, Église de la Madeleine, 75008 Paris) : Œuvre lyrique majeure, mais pas de Wagner.",
+      "answer": "Aucun événement du contexte ne propose un opéra de Wagner ce mois-ci (septembre 2026).",
       "contexts": [
         "Événement : L'Opéra C'est (pas) Pour Moi\nDates : Dimanche 22 novembre, 16h00\nLieu : Les Trois Baudets, 75018 Paris\nTarif : Payant — 7 euros.\nMots-clés : Concert, Enfants, Spectacle musical\n\nL'opéra c'est (pas) pour moi\n\nDaphné Hacquard vous ouvre les portes de son salon pour un « apéropéra » et vous fait voyager à travers cinq siècles d'histoire de l'opéra… en seulement 60 minutes ! Elle vous raconte des anecdotes savoureuses, incarne des personnages hauts en couleur, interprète les airs les plus emblématiques de chaque période et invite le public (volontaire !) à monter sur scène pour faire partie intégrante de la mise en scène. Daphné vous apprend même ses techniques de chanteuse lyrique pour vous aider à sortir votre voix ! Vous vivrez avec émotion les plus belles pages du répertoire lyrique, soigneusement choisies pour toucher autant le cœur que l'esprit. Le tout dans une ambiance détendue, conviviale et joyeuse, accessible à tous !",
         "Événement : Nuits transfigurées\nDates : Lundi 16 novembre, 20h00\nLieu : Théâtre du Châtelet, 75001 Paris\nTarif : Payant — De 5 à 45 €\nMots-clés : Concert, Tout public\n\nDe Joseph Haydn à Arnold Schoenberg, en passant par Wolfgang Amadeus Mozart, ce programme propose un regard sur la musique autrichienne, grâce à trois focus sur des moments clefs de son histoire. C’est aussi un clin d’œil à l’histoire de l’Orchestre de chambre de Paris, car voilà près d’un demi-siècle que la _Symphonie n°_ _49_, dite « La Passione », entrait à son répertoire, à l’initiative de Daniel Barenboim, qui la dirigea en 1977… Alors qu’il est protégé par le prince Esterházy, Joseph Haydn, lui-même à la tête d’un orchestre, peut composer et expérimenter",
@@ -407,14 +407,14 @@
       "ground_truth": "Aucun opéra de Wagner n'est programmé dans les événements disponibles. Les événements lyriques ou symphoniques les plus proches sont Les Noces de Figaro de Mozart les 3 et 10 octobre au Conservatoire Frédéric Chopin (gratuit) et le Requiem de Verdi à l'église de la Madeleine le 7 novembre.",
       "retrieval_recall": null,
       "retrieval_precision": null,
-      "faithfulness": 0.833,
-      "answer_relevancy": 0.826
+      "faithfulness": 0.0,
+      "answer_relevancy": 0.939
     },
     {
       "id": "japanese_cooking_no_match",
       "type": "no_match",
       "question": "Un cours de cuisine japonaise ?",
-      "answer": "Aucun événement du contexte ne propose exactement un **cours de cuisine japonaise**.\n\nCependant, voici un événement proche :\n- **Démonstration et dégustation \"Découverte de Mura écovillage japonais\"** (17 octobre 2026, 11h30/13h30/15h00) — Maison de la culture du Japon à Paris, 20 €\n  *Différence : Il s’agit d’une dégustation guidée avec démonstration d’artisanat, pas d’un cours de cuisine pratique.*",
+      "answer": "Aucun événement du contexte ne correspond à un cours de cuisine japonaise.",
       "contexts": [
         "Événement : Démonstration et dégustation \"Découverte de Mura écovillage japonais\"\nDates : Samedi 17 octobre, 11h30, 13h30, 15h00\nLieu : Maison de la culture du Japon à Paris, 75015 Paris\nTarif : Payant — 20 €\nMots-clés : Atelier, Gourmand, Nature, Jeunes, Adultes\n\nDans leur potager, elles produisent des légumes typiquement japonais, tels que le daikon, le myoga, le shiso, le kabu ou le kabocha. Elles utilisent leurs légumes lors des événements à mura et essaient d’utiliser les légumes entiers, sans rien jeter. Dans cette séance, vous dégusterez des différents plats préparés des légumes dans le but de vous familiariser à la cuisine anti-gaspillage appelée « cuisine Mottainai ».\n\nEnsuite, vous participerez à une démonstration de fabrication des objets artisanaux utilisant des matières naturelles de Mura.\n\nVenez découvrir ce projet d’écovillage et vous immerger dans l’ambiance de Mura !",
         "Événement : Jardin des langues : initiation au japonais\nDates : Vendredi 2 octobre, 18h00\nLieu : Bibliothèque Drouot, 75009 Paris\nTarif : Gratuit — Réservation sur place, par téléphone ou en écrivant à bibliotheque.drouot@paris.fr\nMots-clés : Atelier, Adultes\n\nDans le cadre de la Rentrée des Cultures, festival organisé chaque année par le FICEP, les Pôles Langues des bibliothèques de la Ville de Paris vous invitent à participer au Jardin des Langues pour vous initier au plurilinguisme !\n\nNous vous proposons donc un atelier de découverte de la langue et de la culture japonaises animé par Emile Nass de la Maison de la culture du Japon à Paris.\n\n![](https://cdn.paris.fr/qfapv4/2025/07/05/original-3e59396650dcb5fd3d7f4ebe3bf8a068.png)\n\n; Crédits : FICEP",
@@ -435,8 +435,8 @@
       "ground_truth": "Aucun cours de cuisine japonaise n'est proposé dans les événements disponibles. La Maison de la culture du Japon à Paris (15e) organise en revanche une démonstration et dégustation 'Découverte de Mura écovillage japonais' le samedi 17 octobre (20 euros).",
       "retrieval_recall": 1.0,
       "retrieval_precision": 0.2,
-      "faithfulness": 0.75,
-      "answer_relevancy": 0.852
+      "faithfulness": 0.0,
+      "answer_relevancy": 0.0
     }
   ]
 }
