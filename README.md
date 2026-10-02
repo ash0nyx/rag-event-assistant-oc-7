@@ -2,7 +2,7 @@
 
 Proof of concept for a chatbot that answers questions about upcoming cultural events. It uses Retrieval-Augmented Generation (RAG): event data from the Open Agenda API is embedded with Mistral, indexed in FAISS, and queried through a LangChain pipeline exposed as a REST API.
 
-OpenClassrooms AI Engineer path, project 7.
+OpenClassrooms AI Engineer path, project 7. The technical report (in French, following the OpenClassrooms template) is in [docs/rapport_technique.md](docs/rapport_technique.md); this README is the developer documentation.
 
 ## Stack
 
@@ -192,7 +192,7 @@ The judge is `ministral-14b-latest`, the strongest model open on the Mistral fre
 
 Results are written to `evaluation/results/latest.json` (per question and averages). `tests/test_evaluation.py` reads that file and fails if an average drops below its threshold, so a regression is caught by `pytest` without re-running the judge.
 
-### Results (index of 2026-09-25, 14 questions)
+### Results (14 questions, index snapshot of 2026-09-25, last run 2026-09-27)
 
 | Metric | Average | Threshold |
 |--------|---------|-----------|
@@ -326,6 +326,10 @@ FastAPI's `TestClient` calls the app in-process. The assistant dependency is ove
 ```
 .
 ├── README.md
+├── docs/
+│   ├── rapport_technique.md # technical report (French, OC template)
+│   ├── architecture.dot     # architecture diagram source (Graphviz)
+│   └── architecture.png
 ├── .env.example             # keys to set in .env
 ├── pyproject.toml           # dependencies (managed by uv); rag/, scripts/ and api/ are installed as packages
 ├── requirements.txt         # exported from uv.lock, for pip users
@@ -357,6 +361,6 @@ FastAPI's `TestClient` calls the app in-process. The assistant dependency is ove
 
 ## Status
 
-All six steps of the mission are implemented: environment, data pipeline, FAISS index, RAG chain, REST API, evaluation, Docker. Remaining: technical report and presentation.
+All six steps of the mission are implemented: environment, data pipeline, FAISS index, RAG chain, REST API, evaluation, Docker. Technical report in `docs/`. Remaining: presentation.
 
 Known limits: the date filter only removes finished events, it does not yet match a requested period ("en novembre") before the vector search; the index is a snapshot and must be rebuilt to stay current; the data source is the City of Paris agenda, rich on public and cultural events, thin on commercial nightlife; the 14B model available on the free tier still misreads some borderline questions, and a single judge run carries noticeable variance.

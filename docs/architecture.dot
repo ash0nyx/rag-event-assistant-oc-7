@@ -1,0 +1,46 @@
+// Architecture of the Puls-Events RAG POC. Render: dot -Tpng -Gdpi=150 docs/architecture.dot -o docs/architecture.png
+digraph rag {
+    rankdir=TB;
+    fontname="Helvetica";
+    newrank=true;
+    node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11, fillcolor="#f4f4f4", color="#555555"];
+    edge [fontname="Helvetica", fontsize=9, color="#555555"];
+
+    subgraph cluster_offline {
+        label="Pipeline de données (scripts/, à la demande ou via /rebuild)";
+        style="rounded,dashed"; color="#888888"; fontsize=11;
+        oa    [label="API Open Agenda\nagenda « Que faire à Paris »", fillcolor="#e8f0fe"];
+        fetch [label="fetch_events.py\npagination par curseur\nfenêtre de dates"];
+        clean [label="clean_events.py\nnettoyage markdown/HTML\nfiltre Paris, dédoublonnage"];
+        build [label="build_index.py\nchunks 800 car. (+100)\nen-tête + métadonnées"];
+        emb   [label="mistral-embed\n1024 dimensions", fillcolor="#fde8e8"];
+        faiss [label="FAISS IndexFlatL2\n5 499 vecteurs\ndata/index/", fillcolor="#e8f5e9"];
+        { rank=same; oa; fetch; clean; }
+        { rank=same; build; emb; faiss; }
+        oa -> fetch -> clean;
+        clean -> build;
+        build -> emb -> faiss;
+    }
+
+    subgraph cluster_online {
+        label="Réponse à une question (rag/chain.py, exposé par api/main.py)";
+        style="rounded,dashed"; color="#888888"; fontsize=11;
+        user  [label="Utilisateur\nPOST /ask", fillcolor="#e8f0fe"];
+        api   [label="FastAPI\nvalidation Pydantic\nSwagger /docs"];
+        retr  [label="Retrieval\n20 chunks proches\nfiltre dates passées\n1 chunk / événement, max 5"];
+        prompt[label="Prompt (français)\nrègles + date du jour\n+ contexte"];
+        llm   [label="ministral-14b-latest\ntempérature 0", fillcolor="#fde8e8"];
+        { rank=same; user; api; retr; }
+        { rank=same; prompt; llm; }
+        user -> api -> retr;
+        retr -> prompt;
+        prompt -> llm;
+        llm -> api [label="réponse + sources"];
+    }
+
+    faiss -> retr [label="chargé au démarrage"];
+    emb -> retr [label="embedding\nde la question", style=dashed];
+
+    docker [label="Conteneur Docker\nimage non-root, port 8000\nvolume ./data, .env", shape=note, fillcolor="#fff8e1"];
+    docker -> api [style=dotted, arrowhead=none];
+}
