@@ -204,7 +204,7 @@ def test_generate_retries_on_rate_limit(monkeypatch):
     class RateLimitedChain:
         """Replaces the LCEL chain: fails twice with 429, then answers."""
 
-        def invoke(self, inputs):
+        def invoke(self, inputs, config=None):
             calls.append(1)
             if len(calls) < 3:
                 resp = httpx.Response(429, request=httpx.Request("POST", "https://api.mistral.ai"))
@@ -217,6 +217,24 @@ def test_generate_retries_on_rate_limit(monkeypatch):
     assert assistant.generate("q", assistant.retrieve("q")) == "réponse"
     assert len(calls) == 3
     assert sleeps == [2.0, 4.0]  # exponential backoff
+
+
+def test_tracing_is_off_without_langfuse_keys(monkeypatch):
+    """Without LANGFUSE_* keys the assistant must not even import langfuse."""
+    from rag.chain import tracing_enabled
+
+    monkeypatch.delenv("LANGFUSE_PUBLIC_KEY", raising=False)
+    monkeypatch.delenv("LANGFUSE_SECRET_KEY", raising=False)
+    assert tracing_enabled() is False
+    assistant = RagAssistant(FakeVectorStore([make_doc(1, "Expo A")]), FakeListChatModel(responses=["ok"]))
+    assert assistant.tracing is False and assistant._callbacks == []
+    assert assistant.ask("q").answer == "ok"
+
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk")
+    assert tracing_enabled() is True
+    # Explicit override wins, so tests and offline runs never hit the network.
+    assert RagAssistant(FakeVectorStore([]), FakeListChatModel(responses=["ok"]), tracing=False).tracing is False
 
 
 def test_ask_with_no_hits_still_answers():

@@ -12,6 +12,7 @@ Two phases, kept separate on purpose (a classic source of confusion):
 
 from __future__ import annotations
 
+import os
 import re
 import time
 import warnings
@@ -211,6 +212,27 @@ def dedupe_by_event(documents: list[Document], max_events: int) -> list[Document
     return kept
 
 
+# --- Observability (optional) -------------------------------------------------
+# Langfuse records each question as a trace: retrieval (which events, how
+# long), the exact prompt, the model's answer, tokens and latency. It is the
+# "flight recorder" complementing the offline Ragas evaluation. Enabled only
+# when the LANGFUSE_* keys are in the environment; without them nothing is
+# imported and the chain behaves exactly as before.
+
+
+def tracing_enabled() -> bool:
+    return bool(os.environ.get("LANGFUSE_PUBLIC_KEY") and os.environ.get("LANGFUSE_SECRET_KEY"))
+
+
+def flush_traces() -> None:
+    """Send pending traces now. Needed before a short-lived process exits
+    (the CLI script); the API flushes at shutdown."""
+    if tracing_enabled():
+        from langfuse import get_client
+
+        get_client().flush()
+
+
 class RagAssistant:
     """Wraps a vector store and a chat model into one `ask()` method."""
 
@@ -220,12 +242,20 @@ class RagAssistant:
         llm: BaseChatModel,
         top_k_chunks: int = TOP_K_CHUNKS,
         max_events: int = MAX_EVENTS,
+        tracing: bool | None = None,
     ):
         self.vector_store = vector_store
         self.top_k_chunks = top_k_chunks
         self.max_events = max_events
         # LCEL chain: prompt -> model -> plain string. Inputs: context, question.
         self.chain = PROMPT | llm | StrOutputParser()
+        self.tracing = tracing_enabled() if tracing is None else tracing
+        # LangChain callback: records the prompt/LLM step under the current trace.
+        self._callbacks: list = []
+        if self.tracing:
+            from langfuse.langchain import CallbackHandler
+
+            self._callbacks = [CallbackHandler()]
 
     def retrieve(self, question: str, today: date | None = None) -> list[Document]:
         """Phase 1: vector search, drop finished events, one chunk per event."""
@@ -246,9 +276,10 @@ class RagAssistant:
             "today": describe_today(today, question),
         }
         wait = RATE_LIMIT_WAIT
+        config = {"callbacks": self._callbacks, "run_name": "generate"} if self._callbacks else None
         for attempt in range(RATE_LIMIT_RETRIES + 1):
             try:
-                return self.chain.invoke(inputs)
+                return self.chain.invoke(inputs, config=config)
             except httpx.HTTPStatusError as err:
                 if err.response.status_code != 429 or attempt == RATE_LIMIT_RETRIES:
                     raise
@@ -258,8 +289,28 @@ class RagAssistant:
 
     def ask(self, question: str) -> RagAnswer:
         """Phase 1 + phase 2."""
+        if not self.tracing:
+            return self._ask(question)
+
+        # One trace per question: a root span "ask" (question in, answer out),
+        # a child span "retrieve" (events found), and the LangChain "generate"
+        # step attached automatically by the callback handler.
+        from langfuse import get_client
+
+        langfuse = get_client()
+        with langfuse.start_as_current_observation(name="ask", as_type="span", input={"question": question}) as root:
+            result = self._ask(question, langfuse)
+            root.update(output={"answer": result.answer}, metadata={"n_sources": len(result.sources)})
+        return result
+
+    def _ask(self, question: str, langfuse=None) -> RagAnswer:
         today = date.today()
-        documents = self.retrieve(question, today)
+        if langfuse is None:
+            documents = self.retrieve(question, today)
+        else:
+            with langfuse.start_as_current_observation(name="retrieve", as_type="span", input={"question": question}) as span:
+                documents = self.retrieve(question, today)
+                span.update(output=[{"uid": d.metadata.get("uid"), "title": d.metadata.get("title")} for d in documents])
         answer = self.generate(question, documents, today)
         sources = [
             {k: doc.metadata.get(k) for k in ("uid", "title", "date_range", "venue", "url")}
@@ -280,12 +331,16 @@ def load_vector_store(index_dir: Path = INDEX_DIR, embeddings: Embeddings | None
     return FAISS.load_local(str(index_dir), embeddings, allow_dangerous_deserialization=True)
 
 
-def build_assistant(index_dir: Path = INDEX_DIR, chat_model: str = CHAT_MODEL) -> RagAssistant:
-    """Production wiring: real index, real Mistral models."""
+def build_assistant(
+    index_dir: Path = INDEX_DIR, chat_model: str = CHAT_MODEL, tracing: bool | None = None
+) -> RagAssistant:
+    """Production wiring: real index, real Mistral models. Tracing follows the
+    LANGFUSE_* environment unless forced (the evaluation script forces it off
+    so 14 synthetic questions do not drown the real ones in the dashboard)."""
     from langchain_mistralai import ChatMistralAI
 
     load_dotenv()
     # temperature 0: the same question and context give the same answer, which
     # makes the evaluation reproducible and the demo predictable.
     llm = ChatMistralAI(model=chat_model, temperature=0, max_retries=5)
-    return RagAssistant(load_vector_store(index_dir), llm)
+    return RagAssistant(load_vector_store(index_dir), llm, tracing=tracing)

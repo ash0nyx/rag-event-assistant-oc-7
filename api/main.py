@@ -26,7 +26,7 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import BaseModel, Field, model_validator
 
-from rag.chain import INDEX_DIR, RagAssistant, build_assistant
+from rag.chain import INDEX_DIR, RagAssistant, build_assistant, flush_traces
 
 warnings.filterwarnings("ignore")  # HF tokenizer notice, langchain-community sunset
 
@@ -96,6 +96,7 @@ async def lifespan(app: FastAPI):
     load_dotenv()
     app.state.assistant = build_assistant()
     yield
+    flush_traces()  # on shutdown: push any Langfuse trace still in the buffer
 
 
 app = FastAPI(

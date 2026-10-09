@@ -197,7 +197,7 @@ def main() -> None:
     else:
         today = date.fromisoformat(test_set["today"])
         print(f"Running the chain on {len(items)} questions as of {today} ...")
-        rows = run_chain(build_assistant(index_dir=args.index_dir), items, args.pause, today)
+        rows = run_chain(build_assistant(index_dir=args.index_dir, tracing=False), items, args.pause, today)
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
 

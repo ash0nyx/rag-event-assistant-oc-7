@@ -65,6 +65,8 @@ L'index et le modèle sont chargés une fois au démarrage de l'API, pas à chaq
 | Évaluation | Ragas, métriques exactes maison | Fidélité, pertinence, rappel et précision du retrieval |
 | Tests | pytest | 47 tests hors ligne, dont une porte de régression sur les scores |
 | Déploiement | Docker, Docker Compose | Image non-root, volume de données, health check |
+| Intégration continue | GitHub Actions | Tests à chaque push et pull request ; évaluation complète à la demande |
+| Observabilité | Langfuse (cloud, offre gratuite) | Trace de chaque question : retrieval, prompt, réponse, latence, tokens ; optionnel |
 
 # 3. Préparation et vectorisation des données
 
@@ -341,7 +343,12 @@ Le concert du samedi est bien dans le week-end annoncé, et le modèle le décla
 - **Modèle plus grand** : `mistral-small` ou `mistral-large` sur une offre payante, pour la génération comme pour le juge ; le changement est une constante dans le code.
 - **Mise à jour incrémentale** : réindexer seulement les événements créés ou modifiés (`updatedAt`) au lieu de tout reconstruire.
 - **Historique de conversation** : permettre des questions de suivi (« et le dimanche ? »), hors périmètre du POC.
-- **Passage en production** : exécution des tests et de l'évaluation dans GitHub Actions ; déploiement de l'image sur un service managé (Cloud Run ou équivalent) avec les clés dans un gestionnaire de secrets ; observabilité des requêtes réelles avec Langfuse (traces, latence, coût, évaluations sur le trafic) ; authentification sur `/ask` ; reconstruction planifiée de l'index.
+- **Passage en production** : déploiement de l'image sur un service managé (Cloud Run ou équivalent) avec les clés dans un gestionnaire de secrets ; authentification sur `/ask` ; reconstruction planifiée de l'index ; évaluations Langfuse sur le trafic réel plutôt que sur le seul jeu de test.
+
+## Déjà en place pour l'industrialisation
+
+- **Intégration continue** : deux workflows GitHub Actions. `ci.yml` exécute les 47 tests unitaires à chaque push et pull request ; la branche `main` est protégée et n'accepte une fusion que si ce contrôle est vert. `evaluate.yml` lance à la demande l'évaluation complète contre un instantané de l'index versionné dans le dépôt (`evaluation/index_snapshot/`, 28 Mo), puis la porte de régression, et publie les résultats en artefact. L'évaluation n'est pas lancée à chaque push : elle coûte une demi-heure et des appels API, et n'a de sens qu'après un changement de prompt, de modèle ou de retrieval.
+- **Observabilité** : chaque appel à `/ask` produit une trace Langfuse (span racine `ask`, span `retrieve` avec les événements retrouvés, étape LangChain `generate` avec le prompt, la réponse et la latence). Activée par la seule présence des clés `LANGFUSE_*` dans l'environnement ; sans elles, rien n'est importé ni envoyé. Langfuse complète Ragas : Ragas note le système avant livraison sur des questions fixes, Langfuse enregistre ce qu'il fait après livraison sur les questions réelles. L'outil est open source et auto-hébergeable, ce qu'une entreprise ferait pour des données privées ; l'offre cloud suffit ici, les traces ne contenant que des fiches d'événements publiques.
 
 # 9. Organisation du dépôt GitHub
 
@@ -366,8 +373,10 @@ Dépôt : `github.com/ash0nyx/rag-event-assistant-oc-7` (branche `main`, version
 │   ├── ask_question.py       # accès en ligne de commande à la chaîne, sans API
 │   ├── api_test.py           # test fonctionnel d'une API en cours d'exécution
 │   └── evaluate_rag.py       # métriques exactes + Ragas sur le jeu annoté -> evaluation/results/
+├── .github/workflows/        # ci.yml (tests à chaque push), evaluate.yml (évaluation à la demande)
 ├── evaluation/
 │   ├── test_set.json         # 14 questions annotées
+│   ├── index_snapshot/       # index FAISS sur lequel le jeu a été annoté (versionné, 28 Mo)
 │   └── results/              # latest.json et exécutions horodatées
 ├── tests/                    # 47 tests pytest hors ligne, un fichier par module
 └── data/                     # ignoré par Git : brut, nettoyé, index (reconstruit par les scripts)
