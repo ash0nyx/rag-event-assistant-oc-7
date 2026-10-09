@@ -1,0 +1,49 @@
+# Full RAG evaluation, on demand (Actions tab > Evaluate RAG > Run workflow).
+# Not on every push: the judge calls Mistral for ~25 minutes on the free tier.
+# Runs against the committed index snapshot (evaluation/index_snapshot), the
+# one the test set was annotated on, so no data fetch and no Open Agenda key.
+# Secret to set in the repository settings: MISTRAL_API_KEY
+name: Evaluate RAG
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_ragas:
+        description: "Only the exact retrieval metrics (about 2 minutes, no judge calls)"
+        type: boolean
+        default: false
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Evaluate
+        run: |
+          if [ "${{ inputs.skip_ragas }}" = "true" ]; then
+            uv run python scripts/evaluate_rag.py --index-dir evaluation/index_snapshot --skip-ragas
+          else
+            uv run python scripts/evaluate_rag.py --index-dir evaluation/index_snapshot --workers 2
+          fi
+
+      - name: Regression gate
+        run: uv run pytest tests/test_evaluation.py -v
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-results
+          path: evaluation/results/

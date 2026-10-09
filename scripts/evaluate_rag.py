@@ -179,6 +179,10 @@ def main() -> None:
         "scores already present are kept unless re-scored",
     )
     parser.add_argument("--pause", type=float, default=PAUSE_BETWEEN_QUESTIONS)
+    parser.add_argument(
+        "--index-dir", type=Path, default=Path("data/index"),
+        help="FAISS index to evaluate against; use evaluation/index_snapshot for the snapshot the test set was annotated on",
+    )
     args = parser.parse_args()
 
     load_dotenv()
@@ -193,7 +197,7 @@ def main() -> None:
     else:
         today = date.fromisoformat(test_set["today"])
         print(f"Running the chain on {len(items)} questions as of {today} ...")
-        rows = run_chain(build_assistant(), items, args.pause, today)
+        rows = run_chain(build_assistant(index_dir=args.index_dir), items, args.pause, today)
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
 
@@ -205,6 +209,7 @@ def main() -> None:
             "evaluated_at": datetime.now(timezone.utc).isoformat(),
             "test_set": str(args.test_set),
             "index_built_on": test_set.get("index_built_on"),
+        "index_dir": str(args.index_dir),
             "n_questions": len(rows),
             "judge_model": None if args.skip_ragas else JUDGE_MODEL,
             "summary": summary,

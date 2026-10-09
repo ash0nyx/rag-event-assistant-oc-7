@@ -7,6 +7,7 @@ Usage:
     uv run python scripts/fetch_events.py                       # 500 events, today to +60 days
     uv run python scripts/fetch_events.py --max-events 50
     uv run python scripts/fetch_events.py --since-days 30 --until-days 90
+    uv run python scripts/fetch_events.py --from-date 2026-09-25 --to-date 2026-12-31 --max-events 3000
 """
 
 from __future__ import annotations
@@ -80,6 +81,8 @@ def main() -> None:
     parser.add_argument("--max-events", type=int, default=500)
     parser.add_argument("--since-days", type=int, default=0, help="window start: today minus N days")
     parser.add_argument("--until-days", type=int, default=60, help="window end: today plus N days")
+    parser.add_argument("--from-date", type=date.fromisoformat, help="window start as YYYY-MM-DD (overrides --since-days)")
+    parser.add_argument("--to-date", type=date.fromisoformat, help="window end as YYYY-MM-DD (overrides --until-days)")
     parser.add_argument("--page-size", type=int, default=PAGE_SIZE)
     parser.add_argument("--output", type=Path, default=RAW_PATH)
     args = parser.parse_args()
@@ -89,8 +92,9 @@ def main() -> None:
     if not api_key:
         raise SystemExit("OPENAGENDA_API_KEY is missing. Add it to your .env file.")
 
-    since = date.today() - timedelta(days=args.since_days)
-    until = date.today() + timedelta(days=args.until_days)
+    # Relative days for everyday use, explicit dates for reproducible runs (CI).
+    since = args.from_date or date.today() - timedelta(days=args.since_days)
+    until = args.to_date or date.today() + timedelta(days=args.until_days)
     print(f"Fetching events from agenda {AGENDA_UID} between {since} and {until} ...")
     events = fetch_events(api_key, AGENDA_UID, since, args.max_events, args.page_size, until=until)
 

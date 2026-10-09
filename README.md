@@ -165,12 +165,14 @@ Troubleshooting: a VPN with a kill switch (NordVPN and similar) blocks traffic b
 ## Evaluation
 
 ```bash
-uv run python scripts/evaluate_rag.py                 # full annotated set, about 25 minutes
-uv run python scripts/evaluate_rag.py --limit 3       # quick check
-uv run python scripts/evaluate_rag.py --skip-ragas    # retrieval metrics only, no judge calls
+uv run python scripts/evaluate_rag.py --index-dir evaluation/index_snapshot   # full annotated set, about 25 minutes
+uv run python scripts/evaluate_rag.py --index-dir evaluation/index_snapshot --limit 3       # quick check
+uv run python scripts/evaluate_rag.py --index-dir evaluation/index_snapshot --skip-ragas    # retrieval metrics only, no judge calls
 uv run python scripts/evaluate_rag.py --from-results evaluation/results/latest.json --metrics faithfulness
                                                       # re-score one metric on saved answers
 ```
+
+The evaluation runs against `evaluation/index_snapshot/`, a committed copy (28 MB) of the index the test set was annotated on. The live index in `data/index/` changes with every rebuild; the snapshot does not, so the reference answers stay valid and the run is reproducible on any machine, including the GitHub Actions runner.
 
 ### Annotated test set
 
@@ -236,6 +238,17 @@ Running the set surfaced four generation failures of the 14B model, each fixed b
 - on a Sunday evening it still listed Saturday's concert for "ce week-end": finished events are now filtered out in Python before the prompt.
 
 Before these fixes, faithfulness was below 0.5 on the affected questions; after, the average is 0.83.
+
+## Continuous integration
+
+Two GitHub Actions workflows in `.github/workflows/`:
+
+| Workflow | Trigger | What it does |
+|----------|---------|--------------|
+| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 47 unit tests. Offline, no secret, about a minute. A failing test blocks the pull request. |
+| `evaluate.yml` | manual (Actions tab, "Run workflow") | Runs `evaluate_rag.py` against the committed index snapshot, then the regression gate, and uploads `evaluation/results/` as a downloadable artifact. Needs the `MISTRAL_API_KEY` repository secret. About 25 minutes; a `skip_ragas` checkbox gives the exact retrieval metrics in 2 minutes. |
+
+The evaluation is not run on every push on purpose: it costs API calls and half an hour. It is run after a prompt, model or retrieval change.
 
 ## Tests
 
@@ -347,8 +360,12 @@ FastAPI's `TestClient` calls the app in-process. The assistant dependency is ove
 │   ├── ask_question.py      # command-line access to the chain, without the API
 │   ├── api_test.py          # functional test of a running API (real index, real LLM)
 │   └── evaluate_rag.py      # Ragas + retrieval metrics on the annotated set -> evaluation/results/
+├── .github/workflows/
+│   ├── ci.yml               # unit tests on every push and pull request
+│   └── evaluate.yml         # on-demand RAG evaluation, results uploaded as artifact
 ├── evaluation/
 │   ├── test_set.json        # 14 annotated questions (reference answer, expected event uids)
+│   ├── index_snapshot/      # the FAISS index the test set was annotated on (committed, 28 MB)
 │   └── results/             # latest.json and timestamped runs
 └── tests/
     ├── test_fetch_events.py
