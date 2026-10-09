@@ -12,7 +12,7 @@ from __future__ import annotations
 import argparse
 import warnings
 
-from rag.chain import build_assistant, format_context
+from rag.chain import build_assistant, flush_traces, format_context
 
 warnings.filterwarnings("ignore")  # HF tokenizer download notice, etc.
 
@@ -37,6 +37,7 @@ def main() -> None:
     print("=== Sources ===")
     for s in result.sources:
         print(f"- {s['title']} | {s['date_range']} | {s['venue']} | {s['url']}")
+    flush_traces()  # the process exits right after: push the Langfuse trace now
 
 
 if __name__ == "__main__":

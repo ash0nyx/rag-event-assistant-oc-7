@@ -13,6 +13,7 @@ dependencies = [
     "langchain-core>=1.6.5",
     "langchain-mistralai>=1.1.6",
     "langchain-text-splitters>=1.1.2",
+    "langfuse>=4.17.0",
     "mistralai>=2.9.4",
     "pandas>=3.0.5",
     "pydantic>=2.13.4",

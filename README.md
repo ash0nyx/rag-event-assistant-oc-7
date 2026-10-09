@@ -8,7 +8,7 @@ OpenClassrooms AI Engineer path, project 7. The technical report (in French, fol
 
 - Python 3.12, managed with [uv](https://docs.astral.sh/uv/)
 - LangChain, FAISS (vector store), Mistral (`mistral-embed` for embeddings, `ministral-14b-latest` for generation)
-- FastAPI and uvicorn (REST API), pytest, Ragas (evaluation), Docker (local deployment)
+- FastAPI and uvicorn (REST API), pytest, Ragas (evaluation), Docker (local deployment), Langfuse (optional tracing)
 
 ## Setup
 
@@ -162,6 +162,22 @@ Image size is about 1.2 GB, mostly the tokenizer and numeric stack; acceptable f
 
 Troubleshooting: a VPN with a kill switch (NordVPN and similar) blocks traffic between the host and Docker's network, so `localhost:8000` hangs even though the container reports healthy. Disconnect the VPN or allowlist Docker's subnet (`nordvpn allowlist add subnet 172.17.0.0/16`).
 
+## Observability with Langfuse (optional)
+
+The evaluation below scores the system once, on a fixed test set. Langfuse records what happens on every real question: a trace per `/ask` call with the question, the events retrieved and how long that took, the exact prompt, the model's answer, latency and token usage. The dashboard shows traces, latency percentiles and the questions that got a "nothing matches" answer.
+
+Setup: create a free project at [cloud.langfuse.com](https://cloud.langfuse.com) (EU region), create API keys, and add them to `.env`:
+
+```
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+LANGFUSE_BASE_URL=https://cloud.langfuse.com
+```
+
+That is all: `rag/chain.py` detects the keys and attaches Langfuse's LangChain callback to the chain, with a root span `ask` and a child span `retrieve`. Without the keys, nothing is imported and nothing is sent. The evaluation script forces tracing off so its 14 synthetic questions do not mix with real ones. The CLI script flushes traces before exiting; the API flushes at shutdown.
+
+Why Langfuse and not only Ragas: Ragas answers "how good is the system on these questions" before shipping; Langfuse answers "what is it doing right now" after shipping, and its evaluations can run on real traffic. Langfuse is open source and can be self-hosted (Docker Compose with Postgres, ClickHouse, Redis and MinIO), the option a company would take for private data; the cloud free tier is enough here because the traces only contain public event listings.
+
 ## Evaluation
 
 ```bash
@@ -307,6 +323,7 @@ FAISS is replaced by a fake store that returns scripted chunks, and the LLM by L
 | `test_prompt_contains_rules_context_and_question` | The rendered prompt holds the rules, today's date, the retrieved chunks and the user question. | The prompt is the whole contract with the model; a missing piece silently degrades answers. |
 | `test_generate_retries_on_rate_limit` | Two HTTP 429 responses then a success: the call is retried with waits of 2 s then 4 s. | The free tier rate-limits; the chain must survive it without real waiting in tests. |
 | `test_ask_with_no_hits_still_answers` | With no retrieved chunk, the chain still returns an answer and an empty source list. | Empty context is a normal case, not an error. |
+| `test_tracing_is_off_without_langfuse_keys` | Without `LANGFUSE_*` keys tracing is off and `langfuse` is not imported; an explicit `tracing=False` wins over the keys. | Observability must stay optional: tests, CI and Docker work without an account. |
 
 ### `tests/test_api.py`
 
