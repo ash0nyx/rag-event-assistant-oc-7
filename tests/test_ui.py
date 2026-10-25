@@ -118,3 +118,17 @@ def test_dashboard_shows_kpis_and_negative_feedback(db_url):
     assert metrics["Satisfaction"] == "50%"
     assert metrics["Latence médiane (RAG)"] == "2.0 s"
     assert any("Un concert ?" in e.label for e in at.expander)  # the negative one is listed
+
+
+def test_example_buttons_ask_the_question_and_history_shows_no_stray_values(fake_api):
+    """Click a suggestion, then rerun with a second question: earlier messages
+    are re-rendered from history and must not print stray values like None."""
+    at = AppTest.from_file(CHAT, default_timeout=30).run()
+    next(b for b in at.button if b.label == "Quel temps fera-t-il demain ?").click().run()
+    assert fake_api[0] == ("ask", {"question": "Quel temps fera-t-il demain ?"})
+
+    at.chat_input[0].set_value("Bonjour").run()
+
+    # Streamlit magic renders a stray None as the markdown `None`.
+    assert not [m.value for m in at.markdown if "None" in m.value]
+    assert len([m for m in at.chat_message]) == 4  # 2 questions + 2 answers, each once

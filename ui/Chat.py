@@ -123,7 +123,12 @@ if not st.session_state.messages:
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        render_answer(message) if message["role"] == "assistant" else st.write(message["content"])
+        # A plain if/else, not a one-line `x if c else y`: Streamlit "magic"
+        # displays the value of any bare expression, here None.
+        if message["role"] == "assistant":
+            render_answer(message)
+        else:
+            st.write(message["content"])
 
 question = st.chat_input("Votre question") or st.session_state.pop("pending", None)
 if question:
