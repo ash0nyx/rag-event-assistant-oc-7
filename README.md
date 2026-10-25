@@ -97,7 +97,9 @@ uv run python scripts/ask_question.py "Une expo gratuite pour enfants ?" --show-
 
 The chain lives in `rag/chain.py` (`RagAssistant` class) and runs in two phases:
 
-1. **Retrieval.** The question is embedded with `mistral-embed` and FAISS returns the 20 closest chunks. Chunks whose event is already over (last session before today) are dropped, then one chunk per event is kept (best-ranked first), at most 5 events. No LLM is involved in this phase. The date filter is done in Python because vector similarity knows nothing about dates: "concert de jazz ce week-end" ranks last week's concert as high as next week's.
+1. **Retrieval.** The question is embedded with `mistral-embed` and FAISS returns the 20 closest chunks. Chunks whose event is already over (last session before today) are dropped, then one chunk per event is kept (best-ranked first), at most 5 events. No LLM is involved in this phase.
+
+   **Date-aware retrieval.** Vector similarity knows nothing about dates: "novembre" is a word to it, not a constraint, so "un spectacle de danse en novembre" also brought back September and December shows. When the question asks for a period, Python turns it into dates (`requested_period` in `rag/chain.py`: aujourd'hui, ce soir, demain, ce week-end, cette semaine, ce mois-ci, le mois prochain, a month name, a season), fetches 80 candidates instead of 20, and keeps only the events whose session window overlaps that period. If none does, the unfiltered candidates are kept so the model can say "nothing this weekend" and offer the nearest dates. On the 6 dated test questions, the share of retrieved events inside the requested period went from 60 % to 100 %. Limit: the filter uses an event's first and last session dates, so an event held every Thursday from October to December overlaps a weekend window although it never happens on a weekend.
 2. **Generation.** The kept chunks are pasted into a French system prompt together with today's date, and `ministral-14b-latest` writes the answer. The prompt tells the model to use only the provided events, to give title, dates, venue and price, and, when nothing matches exactly, to say so and then offer the closest events from the context with the difference stated. The prompt is in French on purpose: Mistral models are trained heavily on French, the data and the expected answer are French, and mixing languages costs a small model more than it gains.
 
 The result holds the answer and the sources (uid, title, dates, venue, URL), so the API can show links and the evaluation step can check that answers stay faithful to the context.
@@ -172,13 +174,13 @@ The Streamlit app has two pages:
 
 **Intent classifier** (`rag/intent.py`). Before any retrieval, each message is classified as `events` (goes to the RAG), `chat` (greeting, thanks, "who are you?") or `off_topic` (weather, maths, code, news). The last two get a fixed answer, with no retrieval and no 14B call. Two stages, cheapest first: regular expressions for obvious small talk, then `ministral-3b-latest` answering with one label. When the model's answer cannot be parsed or the call fails, the default is `events`: running the RAG for nothing is cheaper than refusing a real question.
 
-Measured on `evaluation/intent_set.json` (32 labelled messages: the 14 RAG test questions plus extra event, small-talk and off-topic ones) with `uv run python scripts/evaluate_intent.py`:
+Measured on `evaluation/intent_set.json` (35 labelled messages: the 14 RAG test questions plus extra event, small-talk and off-topic ones) with `uv run python scripts/evaluate_intent.py`:
 
 | Accuracy | Real event questions refused | Median latency |
 |----------|------------------------------|----------------|
-| 0.97 | 0 | 0.24 s |
+| 1.00 | 0 | 0.22 s |
 
-The one miss sends "Que sais-tu faire ?" to the RAG instead of the fixed presentation, the safe direction. End to end in Docker, a greeting is answered in under a millisecond, an off-topic question in about 0.5 s, and an events question in about 3.5 s.
+The first version reached 0.97: the small model sent "Que sais-tu faire ?" to the RAG. Questions about the assistant itself ("qui es-tu ?", "que sais-tu faire ?", "ça va ?") are now caught by a rule, which is exact and free; requests such as "que peux-tu me conseiller ce soir ?" still go to the model. End to end in Docker, a greeting is answered in under a millisecond, an off-topic question in about 0.5 s, and an events question in about 3.5 s.
 
 **Interaction log and feedback** (`api/database.py`). Every `/ask` call is stored with SQLAlchemy in `data/interactions.db` (SQLite, on the Docker volume): question, intent, answer, sources, latency, Langfuse trace id, then the user's vote and comment. Switching to PostgreSQL is a change of `INTERACTIONS_DB_URL`, not of code. Logging never blocks an answer: if the write fails, the answer is still returned without an id. With Langfuse enabled, each vote is also attached to the question's trace as a `user_feedback` score, so traces can be filtered by satisfaction.
 
@@ -260,6 +262,7 @@ The evaluation runs against `evaluation/index_snapshot/`, a committed copy (28 M
 |--------|-------------|----------|
 | `retrieval_recall` | exact, from the annotated uids | Which share of the expected events did the retriever return? |
 | `retrieval_precision` | exact, from the annotated uids | Which share of the returned events were expected? |
+| `retrieval_in_period` | exact, from the event dates | For questions asking for a period, which share of the returned events falls inside it? Independent of how complete the annotation is. |
 | `faithfulness` | Ragas, LLM judge | Is every claim in the answer supported by the retrieved chunks? Detects hallucinations. |
 | `answer_relevancy` | Ragas, LLM judge | Does the answer address the question? Non-answers score low. |
 
@@ -267,16 +270,17 @@ The judge is `ministral-14b-latest`, the strongest model open on the Mistral fre
 
 Results are written to `evaluation/results/latest.json` (per question and averages). `tests/test_evaluation.py` reads that file and fails if an average drops below its threshold, so a regression is caught by `pytest` without re-running the judge.
 
-### Results (14 questions, index snapshot of 2026-09-25, last run 2026-09-27)
+### Results (14 questions, index snapshot of 2026-09-25, last run 2026-10-25)
 
 | Metric | Average | Threshold |
 |--------|---------|-----------|
 | retrieval_recall | 0.96 | 0.6 |
 | retrieval_precision | 0.71 | 0.4 |
-| faithfulness | 0.83 | 0.5 |
-| answer_relevancy | 0.73 | 0.5 |
+| retrieval_in_period | 1.00 | 0.9 |
+| faithfulness | 0.95 | 0.5 |
+| answer_relevancy | 0.76 | 0.5 |
 
-Reading: the retriever finds almost every expected event (the one miss is a broad Halloween question with 7 expected events and a 5-event cap). Precision is lower on questions with a date constraint ("ce week-end"), because vector similarity ignores dates and returns jazz concerts of every date; only finished events are filtered out, matching a requested period before the search is the next improvement. Answers stay faithful to the retrieved events. The "no match" questions get a clear negative answer followed by the closest alternatives; Ragas scores such answers low on relevancy by design (it treats "nothing matches exactly" as non-committal), which is why one relevancy score is 0 for an answer that is actually right.
+Reading: the retriever finds almost every expected event (the one miss is a broad Halloween question with 7 expected events and a 5-event cap). On questions asking for a period, every retrieved event now falls inside it. `retrieval_precision` did not move with the date filter because it is measured against an annotation of one or two events per question while the system returns five; the extra events are often valid (a Sunday jam session for "ce week-end", another November dance show for "en novembre"), which is why `retrieval_in_period` was added. Answers stay faithful to the retrieved events: 13 of 14 score 0.8 or more. The "no match" questions get a clear negative answer followed by the closest alternatives; Ragas scores such answers low on relevancy by design (it treats "nothing matches exactly" as non-committal), which is why one relevancy score is 0 for an answer that is actually right.
 
 The successive runs, all on the same 14 questions and judge, show how the evaluation drove the changes:
 
@@ -286,8 +290,9 @@ The successive runs, all on the same 14 questions and judge, show how the evalua
 | 2 | 20 chunks, past events filtered | 0.71 | 0.68 | 0.75 |
 | 3 | season dates in every prompt, temperature 0 | 0.71 | 0.55 | 0.73 |
 | 4 | calendar text only for dated questions, near-match rule | 0.71 | 0.83 | 0.73 |
+| 5 | period filter in retrieval, direct answers to broad questions, markdown stripped | 0.71 | 0.95 | 0.76 |
 
-Run 3 is the useful lesson: a prompt addition that looked harmless (season bounds for every question) made the model restrict undated questions to the coming weekend and cost 0.28 of faithfulness. The evaluation caught it, and run 4 recovered it. Precision between runs 1 and 2 reflects the annotation as much as the system: with 20 candidates, questions with only two expected events now return three extra relevant ones that the reference does not list.
+Run 5 combines the post-defense changes; faithfulness gains 0.12 and every retrieved event falls in the requested period (0.60 before, 1.00 after). Run 3 is the useful lesson: a prompt addition that looked harmless (season bounds for every question) made the model restrict undated questions to the coming weekend and cost 0.28 of faithfulness. The evaluation caught it, and run 4 recovered it. Precision between runs 1 and 2 reflects the annotation as much as the system: with 20 candidates, questions with only two expected events now return three extra relevant ones that the reference does not list.
 
 Variance: a single run of a 14B judge moves individual scores by 0.1 to 0.3, so conclusions should rest on averages and on reading the answers, not on one number.
 
@@ -308,9 +313,11 @@ Running the set surfaced four generation failures of the 14B model, each fixed b
 - it did not map the agenda keyword "Jeunes" to adolescents: the audience keywords are now explained in the prompt;
 - given weekend and season dates on every question, it restricted undated questions to the coming weekend: the calendar sentences are now only added when the question contains a relative time expression;
 - told to "propose nothing else" when nothing matched, it refused defensible near matches (a public rehearsal for "un spectacle de danse contemporaine"): it now states the mismatch and offers the closest events from the context;
-- on a Sunday evening it still listed Saturday's concert for "ce week-end": finished events are now filtered out in Python before the prompt.
+- on a Sunday evening it still listed Saturday's concert for "ce week-end": finished events are now filtered out in Python before the prompt;
+- on broad questions ("Que faire à Paris pour Halloween ?") it opened with "no event matches exactly" before listing perfectly good Halloween events: the prompt now says to recommend matching events directly and keep the "no exact match" answer for when nothing fits;
+- it sometimes used markdown (`**bold**`) despite the plain-text rule: bold markers and headings are now removed in Python after generation.
 
-Before these fixes, faithfulness was below 0.5 on the affected questions; after, the average is 0.83.
+Before these fixes, faithfulness was below 0.5 on the affected questions; after, the average is 0.95.
 
 ## Continuous integration
 
@@ -318,7 +325,7 @@ Two GitHub Actions workflows in `.github/workflows/`:
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 97 unit tests with coverage. Offline, no secret, about a minute. A failing test, or coverage under 85 %, blocks the pull request. The HTML coverage report is uploaded as an artifact. |
+| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 123 unit tests with coverage. Offline, no secret, about a minute. A failing test, or coverage under 85 %, blocks the pull request. The HTML coverage report is uploaded as an artifact. |
 | `evaluate.yml` | manual (Actions tab, "Run workflow") | Runs `evaluate_rag.py` against the committed index snapshot, then the regression gate, and uploads `evaluation/results/` as a downloadable artifact. Needs the `MISTRAL_API_KEY` repository secret. About 25 minutes; a `skip_ragas` checkbox gives the exact retrieval metrics in 2 minutes. |
 
 The evaluation is not run on every push on purpose: it costs API calls and half an hour. It is run after a prompt, model or retrieval change.
@@ -332,7 +339,7 @@ uv run pytest --cov --cov-report=term --cov-report=html   # with coverage; open 
 
 ### Coverage
 
-Coverage is the share of our code lines executed by the tests. 97 tests, 95 % overall:
+Coverage is the share of our code lines executed by the tests. 123 tests, 95 % overall:
 
 | File | Coverage | Not covered |
 |------|----------|-------------|
@@ -400,6 +407,11 @@ FAISS is replaced by a fake store that returns scripted chunks, and the LLM by L
 | `test_prompt_contains_rules_context_and_question` | The rendered prompt holds the rules, today's date, the retrieved chunks and the user question. | The prompt is the whole contract with the model; a missing piece silently degrades answers. |
 | `test_generate_retries_on_rate_limit` | Two HTTP 429 responses then a success: the call is retried with waits of 2 s then 4 s. | The free tier rate-limits; the chain must survive it without real waiting in tests. |
 | `test_ask_with_no_hits_still_answers` | With no retrieved chunk, the chain still returns an answer and an empty source list. | Empty context is a normal case, not an error. |
+| `test_requested_period` | 13 questions: today, tomorrow, weekend, this week, this month, next month, a month name (current, future, past), seasons (current, past), and two without period. | The period must be computed exactly; a past month or season means the next one. |
+| `test_in_period_uses_the_session_window_overlap` | An event inside, spanning, before, after the window, or without dates. | The filter's rule, including its fallback. |
+| `test_retrieve_keeps_only_events_in_the_requested_period` | "En novembre" keeps only the November events and fetches 4x more candidates. | The improvement itself. |
+| `test_retrieve_falls_back_when_nothing_is_in_the_period` | Nothing this weekend: the nearest candidates are kept. | The model can still say "nothing this weekend" and offer other dates. |
+| `test_strip_markdown_keeps_text_and_bullets` / `test_generated_answer_is_stripped_of_markdown` | Bold markers and headings removed, bullets kept, applied to every generated answer. | Plain text in Swagger and in the terminal. |
 | `test_traced_ask_records_spans_and_returns_the_trace_id` | With a fake Langfuse client, a question opens the `ask` and `retrieve` spans with the right content and returns the trace id. | The trace id links a user's vote to the trace. |
 | `test_push_feedback_score_sends_a_boolean_score` | A thumbs down becomes a `user_feedback` score of 0 with its comment on the trace; no trace id, nothing sent. | Feedback visible in Langfuse. |
 | `test_push_feedback_score_is_silent_without_keys` / `test_flush_traces_only_with_keys` | Without keys nothing is sent and nothing breaks. | Observability stays optional. |
@@ -452,6 +464,8 @@ The small model is replaced by `FakeListChatModel` returning scripted labels.
 | `test_without_a_model_everything_but_small_talk_is_events` | With no model configured, only the rules apply. | Safe degraded mode. |
 | `test_off_topic_question_gets_fixed_answer_and_skips_retrieval` | An off-topic question gets the fixed answer, no sources, and FAISS is never queried. | The point of the classifier: no retrieval, no 14B call. |
 | `test_events_question_goes_through_the_rag` | An events question still gets the RAG answer and its sources. | The classifier must not change the main path. |
+| `test_questions_about_the_assistant_are_chat_by_rules` | "Que sais-tu faire ?", "Bonjour, qui es-tu ?", "Bonjour, ca va ?"... are `chat` without a model call. | Fixes the classifier's one miss, for free. |
+| `test_rules_do_not_swallow_real_requests` | "Que peux-tu me conseiller ce soir ?" and "Ça va être bien le festival ?" still reach the model. | Rules must stay narrow. |
 
 ### `tests/test_database.py`
 
@@ -491,6 +505,7 @@ Streamlit's `AppTest` runs each page headlessly; the API is faked by patching `r
 | `test_latest_scores_meet_thresholds` | Averages in `evaluation/results/latest.json` are above the thresholds. Skipped when no results exist. | Regression gate: a prompt or model change that degrades answers fails `pytest`. |
 | `test_intent_set_is_well_formed` | The intent set covers the three classes, no empty message. | A typo must fail before a run. |
 | `test_intent_classifier_meets_thresholds` | Latest intent results: accuracy at least 0.85 and zero real event questions refused. | Refusing a real question is the costly error. |
+| `test_retrieval_in_period` | Share of documents inside a period; `None` without period or without documents. | The new date metric. |
 
 ## Project structure
 
@@ -550,4 +565,4 @@ Streamlit's `AppTest` runs each page headlessly; the API is faked by patching `r
 
 All six steps of the mission are implemented: environment, data pipeline, FAISS index, RAG chain, REST API, evaluation, Docker. Defended in October 2026; technical report and slides in `docs/`. Added after the defense, following the end of the OpenClassrooms RAG course: Streamlit chat and dashboard, intent classifier, interaction log with user feedback.
 
-Known limits: the date filter only removes finished events, it does not yet match a requested period ("en novembre") before the vector search; the index is a snapshot and must be rebuilt to stay current; the data source is the City of Paris agenda, rich on public and cultural events, thin on commercial nightlife; the 14B model available on the free tier still misreads some borderline questions, and a single judge run carries noticeable variance.
+Known limits: the period filter uses each event's first and last session dates, so recurring events can overlap a window they do not actually fall on; the index is a snapshot and must be rebuilt to stay current; the data source is the City of Paris agenda, rich on public and cultural events, thin on commercial nightlife; the 14B model available on the free tier still misreads some borderline questions, and a single judge run carries noticeable variance.

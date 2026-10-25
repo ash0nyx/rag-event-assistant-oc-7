@@ -40,7 +40,7 @@ warnings.filterwarnings("ignore")
 
 from dotenv import load_dotenv  # noqa: E402
 
-from rag.chain import RagAssistant, build_assistant  # noqa: E402
+from rag.chain import RagAssistant, build_assistant, in_period, requested_period  # noqa: E402
 
 TEST_SET_PATH = Path("evaluation/test_set.json")
 RESULTS_DIR = Path("evaluation/results")
@@ -54,6 +54,16 @@ def retrieval_recall(retrieved_uids: list[int], expected_uids: list[int]) -> flo
     if not expected_uids:
         return None
     return len(set(retrieved_uids) & set(expected_uids)) / len(expected_uids)
+
+
+def retrieval_in_period(documents: list, period: tuple | None) -> float | None:
+    """Share of retrieved events whose dates overlap the period the question
+    asks for ("en novembre", "ce week-end"). Exact, from the metadata; None
+    when the question asks for no period or nothing was retrieved. Unlike
+    retrieval_precision it does not depend on how complete the annotation is."""
+    if not period or not documents:
+        return None
+    return sum(in_period(d, *period) for d in documents) / len(documents)
 
 
 def retrieval_precision(retrieved_uids: list[int], expected_uids: list[int]) -> float | None:
@@ -85,6 +95,7 @@ def run_chain(assistant: RagAssistant, items: list[dict], pause: float, today: d
             "ground_truth": item["ground_truth"],
             "retrieval_recall": retrieval_recall(retrieved_uids, item["expected_uids"]),
             "retrieval_precision": retrieval_precision(retrieved_uids, item["expected_uids"]),
+            "retrieval_in_period": retrieval_in_period(documents, requested_period(item["question"], today)),
         })
         print(f"  [{item['id']}] recall = {rows[-1]['retrieval_recall']}, precision = {rows[-1]['retrieval_precision']}")
         time.sleep(pause)
@@ -112,7 +123,7 @@ def make_judge_llm(model: str):
 
 
 RAGAS_METRICS = ("faithfulness", "answer_relevancy")
-ALL_METRICS = ("retrieval_recall", "retrieval_precision", *RAGAS_METRICS)
+ALL_METRICS = ("retrieval_recall", "retrieval_precision", "retrieval_in_period", *RAGAS_METRICS)
 
 
 def score_with_ragas(rows: list[dict], metric_names: tuple[str, ...] = RAGAS_METRICS, workers: int = 2) -> None:

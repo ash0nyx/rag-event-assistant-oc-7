@@ -79,3 +79,18 @@ def test_events_question_goes_through_the_rag():
     assert result.intent == EVENTS
     assert result.answer == "Expo A."
     assert [s["uid"] for s in result.sources] == [1]
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["Que sais-tu faire ?", "Bonjour, qui es-tu ?", "Bonjour, ca va ?", "Comment ça marche ?", "tu sers à quoi"],
+)
+def test_questions_about_the_assistant_are_chat_by_rules(message):
+    llm = FakeListChatModel(responses=["events"])  # would say events if called
+    assert IntentClassifier(llm).classify(message) == CHAT
+
+
+@pytest.mark.parametrize("message", ["Que peux-tu me conseiller ce soir ?", "Ça va être bien le festival ?"])
+def test_rules_do_not_swallow_real_requests(message):
+    llm = FakeListChatModel(responses=["events"])
+    assert IntentClassifier(llm).classify(message) == EVENTS

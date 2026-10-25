@@ -334,3 +334,85 @@ def test_flush_traces_only_with_keys(fake_langfuse, monkeypatch):
     monkeypatch.delenv("LANGFUSE_SECRET_KEY")
     flush_traces()
     assert not fake_langfuse.flushed
+
+
+# --- Date-aware retrieval ------------------------------------------------------
+
+THU = date(2026, 9, 24)  # a Thursday
+
+
+@pytest.mark.parametrize(
+    "question, expected",
+    [
+        ("Un concert ce soir ?", (THU, THU)),
+        ("Une expo demain ?", (date(2026, 9, 25), date(2026, 9, 25))),
+        ("Quels concerts de jazz ce week-end ?", (date(2026, 9, 26), date(2026, 9, 27))),
+        ("Un atelier cette semaine ?", (THU, date(2026, 9, 27))),
+        ("Un spectacle ce mois-ci ?", (THU, date(2026, 9, 30))),
+        ("Une sortie le mois prochain ?", (date(2026, 10, 1), date(2026, 10, 31))),
+        ("Une exposition de photographie en novembre ?", (date(2026, 11, 1), date(2026, 11, 30))),
+        ("Un concert en septembre ?", (THU, date(2026, 9, 30))),  # current month: from today
+        ("Un festival en mars ?", (date(2027, 3, 1), date(2027, 3, 31))),  # past month: next year
+        ("Un festival de cinéma cet automne ?", (THU, date(2026, 12, 20))),
+        ("Une balade cet été ?", (date(2027, 6, 21), date(2027, 9, 21))),  # summer is over: next one
+        ("Une conférence scientifique gratuite ?", None),
+        ("Un atelier pour les enfants le mercredi ?", None),  # a weekday is not a period
+    ],
+)
+def test_requested_period(question, expected):
+    from rag.chain import requested_period
+
+    assert requested_period(question, THU) == expected
+
+
+def dated_doc(uid, first, last):
+    doc = make_doc(uid, f"Événement {uid}")
+    doc.metadata.update(first_begin=f"{first}T10:00:00+02:00", last_end=f"{last}T18:00:00+02:00")
+    return doc
+
+
+def test_in_period_uses_the_session_window_overlap():
+    from rag.chain import in_period
+
+    window = (date(2026, 11, 1), date(2026, 11, 30))
+    assert in_period(dated_doc(1, "2026-11-10", "2026-11-10"), *window)  # inside
+    assert in_period(dated_doc(2, "2026-09-29", "2027-01-31"), *window)  # spans the window
+    assert not in_period(dated_doc(3, "2026-12-05", "2026-12-06"), *window)  # after
+    assert not in_period(dated_doc(4, "2026-10-01", "2026-10-31"), *window)  # before
+    assert in_period(make_doc(5, "Sans dates"), *window)  # no dates: kept
+
+
+def test_retrieve_keeps_only_events_in_the_requested_period():
+    store = FakeVectorStore([
+        dated_doc(1, "2026-10-03", "2026-10-03"),  # October: best match but wrong month
+        dated_doc(2, "2026-11-12", "2026-11-12"),
+        dated_doc(3, "2026-12-05", "2026-12-05"),
+        dated_doc(4, "2026-11-20", "2026-11-21"),
+    ])
+    assistant = RagAssistant(store, FakeListChatModel(responses=["ok"]), top_k_chunks=10)
+
+    docs = assistant.retrieve("Un concert en novembre ?", today=THU)
+
+    assert [d.metadata["uid"] for d in docs] == [2, 4]
+    assert store.last_k == 40  # 4x more candidates when a period is requested
+
+
+def test_retrieve_falls_back_when_nothing_is_in_the_period():
+    """Nothing this weekend: keep the nearest candidates so the model can say
+    so and offer other dates, rather than answering from an empty context."""
+    store = FakeVectorStore([dated_doc(1, "2026-10-08", "2026-10-08"), dated_doc(2, "2026-10-15", "2026-10-15")])
+    assistant = RagAssistant(store, FakeListChatModel(responses=["ok"]))
+    docs = assistant.retrieve("Un concert de jazz ce week-end ?", today=THU)
+    assert [d.metadata["uid"] for d in docs] == [1, 2]
+
+
+def test_strip_markdown_keeps_text_and_bullets():
+    from rag.chain import strip_markdown
+
+    raw = "## Concerts\n- **Requiem de Verdi** (7 novembre)\n- __Nuits transfigurées__"
+    assert strip_markdown(raw) == "Concerts\n- Requiem de Verdi (7 novembre)\n- Nuits transfigurées"
+
+
+def test_generated_answer_is_stripped_of_markdown():
+    assistant = RagAssistant(FakeVectorStore([make_doc(1, "Expo A")]), FakeListChatModel(responses=["**Expo A**, gratuit"]))
+    assert assistant.ask("Une expo ?").answer == "Expo A, gratuit"

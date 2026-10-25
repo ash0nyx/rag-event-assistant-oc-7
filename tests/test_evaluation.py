@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.evaluate_rag import retrieval_precision, retrieval_recall, summarize
+from scripts.evaluate_rag import retrieval_in_period, retrieval_precision, retrieval_recall, summarize
 
 RESULTS_PATH = Path("evaluation/results/latest.json")
 TEST_SET_PATH = Path("evaluation/test_set.json")
@@ -24,6 +24,7 @@ TEST_SET_PATH = Path("evaluation/test_set.json")
 THRESHOLDS = {
     "retrieval_recall": 0.6,
     "retrieval_precision": 0.4,
+    "retrieval_in_period": 0.9,  # dated questions: retrieved events must fall in the asked period
     "faithfulness": 0.5,
     "answer_relevancy": 0.5,
 }
@@ -100,3 +101,18 @@ def test_intent_classifier_meets_thresholds():
     report = json.loads(INTENT_RESULTS_PATH.read_text(encoding="utf-8"))
     assert report["events_refused"] == 0
     assert report["accuracy"] >= 0.85
+
+
+def test_retrieval_in_period():
+    from datetime import date
+
+    from langchain_core.documents import Document
+
+    def doc(first, last):
+        return Document(page_content="x", metadata={"first_begin": first + "T10:00", "last_end": last + "T18:00"})
+
+    november = (date(2026, 11, 1), date(2026, 11, 30))
+    docs = [doc("2026-11-03", "2026-11-05"), doc("2026-12-05", "2026-12-06")]
+    assert retrieval_in_period(docs, november) == 0.5
+    assert retrieval_in_period(docs, None) is None  # undated question: not scored
+    assert retrieval_in_period([], november) is None
