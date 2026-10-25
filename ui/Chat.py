@@ -25,7 +25,7 @@ EXAMPLES = [
     "Quel temps fera-t-il demain ?",
 ]
 
-st.set_page_config(page_title="Puls-Events, assistant", layout="centered")
+st.set_page_config(page_title="Puls-Events, assistant", page_icon="🏛️", layout="centered")
 
 
 # --- API calls ---------------------------------------------------------------

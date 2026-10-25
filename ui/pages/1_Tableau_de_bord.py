@@ -17,7 +17,7 @@ import streamlit as st
 
 from api.database import InteractionStore
 
-st.set_page_config(page_title="Puls-Events, tableau de bord", layout="wide")
+st.set_page_config(page_title="Puls-Events, tableau de bord", page_icon="🏛️", layout="wide")
 st.title("Tableau de bord")
 
 SERIES = "#2a78d6"  # single series everywhere: one hue, no legend needed
