@@ -128,6 +128,18 @@
     {
       "question": "Résume l'actualité politique de la semaine",
       "intent": "off_topic"
+    },
+    {
+      "question": "Bonjour, ca va ?",
+      "intent": "chat"
+    },
+    {
+      "question": "Capybara c'est quoi ?",
+      "intent": "off_topic"
+    },
+    {
+      "question": "Quoi faire pendant Halloween ?",
+      "intent": "events"
     }
   ]
 }

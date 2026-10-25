@@ -50,6 +50,19 @@ _SMALL_TALK = re.compile(
     r"au revoir|bonne (journée|soirée)|ok|d'accord|super|parfait)\s*[!.?]*\s*$",
     re.IGNORECASE,
 )
+# Whole-message questions about the assistant itself, optionally after a
+# greeting. The small model sent "Que sais-tu faire ?" to the RAG: a rule is
+# exact and free. Anchored, so "que peux-tu me conseiller ce soir ?" still
+# goes to the model (and then to the RAG).
+_ABOUT_ASSISTANT = re.compile(
+    r"^\s*((bonjour|bonsoir|salut|coucou|hello)\s*[,!.]?\s*)?"
+    r"(qui es[- ]tu|qui êtes[- ]vous|tu es qui|"
+    r"que sais[- ]tu faire|que peux[- ]tu faire|qu'est[- ]ce que tu sais faire|"
+    r"à quoi (sers[- ]tu|tu sers)|tu sers à quoi|"
+    r"comment (fonctionnes[- ]tu|tu fonctionnes|ça marche|ca marche)|"
+    r"(comment )?(ça|ca) va|tu vas bien)\s*[!.?]*\s*$",
+    re.IGNORECASE,
+)
 
 SYSTEM_PROMPT = """Tu classes les messages envoyés à un assistant qui recommande des événements culturels à Paris.
 Réponds par un seul mot parmi : events, chat, off_topic.
@@ -93,7 +106,7 @@ class IntentClassifier:
         self.callbacks = callbacks or []
 
     def classify(self, question: str) -> str:
-        if _SMALL_TALK.match(question):
+        if _SMALL_TALK.match(question) or _ABOUT_ASSISTANT.match(question):
             return CHAT
         if self.chain is None:
             return DEFAULT_INTENT
