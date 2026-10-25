@@ -85,10 +85,12 @@ with st.sidebar:
     st.caption(f"API : {'connectée' if api_ok else 'injoignable'} ({API_URL})")
     st.caption("Chaque question est traitée indépendamment : l'assistant ne garde pas l'historique.")
     # Examples live in the sidebar too: drawn on every run, so a click always
-    # registers, even in the middle of a conversation.
+    # registers. A click starts a fresh conversation with that question, so the
+    # answer appears at the top instead of below the fold.
     st.subheader("Exemples")
     for i, example in enumerate(EXAMPLES):
         if st.button(example, key=f"side_example_{i}", use_container_width=True):
+            st.session_state.messages = []
             st.session_state.pending = example
     if st.button("Nouvelle conversation", use_container_width=True):
         st.session_state.messages = []

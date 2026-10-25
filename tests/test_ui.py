@@ -135,8 +135,8 @@ def test_example_buttons_ask_the_question_and_history_shows_no_stray_values(fake
 
 
 def test_examples_stay_clickable_after_a_first_question(fake_api):
-    """Your scenario: ask a question, then click an example. The main-page
-    suggestions are gone by then; the sidebar ones must still work."""
+    """Your scenario: ask a question, then click an example in the sidebar.
+    It starts a fresh conversation with that question and its answer."""
     at = AppTest.from_file(CHAT, default_timeout=30).run()
     at.chat_input[0].set_value("Bonjour").run()
     assert not [b for b in at.button if b.key and b.key.startswith("main_example_")]  # hidden once a question is asked
@@ -144,4 +144,6 @@ def test_examples_stay_clickable_after_a_first_question(fake_api):
     at.button(key="side_example_2").click().run()
 
     assert fake_api[-1] == ("ask", {"question": "Une exposition de photographie en novembre ?"})
-    assert len(at.chat_message) == 4
+    # A fresh conversation: only the example and its answer remain.
+    assert len(at.chat_message) == 2
+    assert at.chat_message[0].markdown[0].value == "Une exposition de photographie en novembre ?"

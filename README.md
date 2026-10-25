@@ -449,7 +449,7 @@ Streamlit's `AppTest` runs each page headlessly; the API is faked by patching `r
 | `test_chat_down_vote_offers_a_comment_box` | A thumbs down posts -1 at once, then the typed comment is sent. | Negative feedback is the useful kind; the comment says why. |
 | `test_chat_reports_an_unreachable_api` | With the API down the page shows a clear message instead of crashing. | Demo-day resilience. |
 | `test_example_buttons_ask_the_question_and_history_shows_no_stray_values` | A suggestion button sends its question; after a second question, the history is re-rendered once, with no stray `None`. | Regression test for a bug found by hand: Streamlit "magic" displayed the value of a one-line `if/else`. |
-| `test_examples_stay_clickable_after_a_first_question` | After a first question, the main-page suggestions are hidden and the sidebar examples still send their question. | Regression test for a lost click found by hand. |
+| `test_examples_stay_clickable_after_a_first_question` | After a first question, the main-page suggestions are hidden; a sidebar example starts a fresh conversation with that question and its answer. | Regression test for a lost click found by hand. |
 | `test_dashboard_with_no_data_says_so` | Empty database: an explanatory message, no error. | First run. |
 | `test_dashboard_shows_kpis_and_negative_feedback` | Question count, satisfaction, median latency and the badly rated answer are shown. | The dashboard's numbers come from the data. |
 
