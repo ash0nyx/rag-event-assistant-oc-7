@@ -358,6 +358,7 @@ FastAPI's `TestClient` calls the app in-process. The assistant dependency is ove
 ├── README.md
 ├── docs/
 │   ├── rapport_technique.md # technical report (French, OC template)
+│   ├── Sazonova_Kseniia_2_PRES_082026.pdf # defense slides (French, 15 slides)
 │   ├── architecture.dot     # architecture diagram source (Graphviz)
 │   └── architecture.png
 ├── .env.example             # keys to set in .env
