@@ -81,3 +81,22 @@ def test_latest_scores_meet_thresholds():
         if summary.get(metric) is not None and summary[metric] < threshold
     ]
     assert not failures, "; ".join(failures)
+
+
+INTENT_SET_PATH = Path("evaluation/intent_set.json")
+INTENT_RESULTS_PATH = Path("evaluation/results/intent_latest.json")
+
+
+def test_intent_set_is_well_formed():
+    items = json.loads(INTENT_SET_PATH.read_text(encoding="utf-8"))["items"]
+    assert {i["intent"] for i in items} == {"events", "chat", "off_topic"}  # every class represented
+    assert all(i["question"].strip() for i in items)
+
+
+@pytest.mark.skipif(not INTENT_RESULTS_PATH.exists(), reason="run scripts/evaluate_intent.py first")
+def test_intent_classifier_meets_thresholds():
+    """Refusing a real events question is the costly error: zero tolerated.
+    Sending small talk to the RAG only wastes a call: covered by accuracy."""
+    report = json.loads(INTENT_RESULTS_PATH.read_text(encoding="utf-8"))
+    assert report["events_refused"] == 0
+    assert report["accuracy"] >= 0.85
