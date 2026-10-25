@@ -341,9 +341,9 @@ Coverage is the share of our code lines executed by the tests. 97 tests, 95 % ov
 | `scripts/clean_events.py` | 100 % | |
 | `scripts/fetch_events.py` | 100 % | |
 | `scripts/build_index.py` | 95 % | creation of the real Mistral embeddings client |
+| `ui/Chat.py` | 94 % | network-error toasts |
 | `ui/pages/1_Tableau_de_bord.py` | 93 % | a few empty-data branches |
 | `rag/intent.py` | 92 % | creation of the real `ministral-3b` client |
-| `ui/Chat.py` | 91 % | network-error toasts |
 | `rag/chain.py` | 89 % | loading the real index and Mistral clients |
 | **Total** | **95 %** | |
 
