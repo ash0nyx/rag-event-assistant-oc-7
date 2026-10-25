@@ -2,7 +2,8 @@
 
 Endpoints:
     GET  /health   liveness check (used by Docker and the demo)
-    POST /ask      question in, augmented answer + sources out
+    POST /ask      question in, augmented answer + sources out (logged, with an id)
+    POST /feedback thumbs up/down and optional comment on a logged answer
     POST /rebuild  re-fetch Open Agenda, rebuild the FAISS index, reload it
                    (protected by an X-API-Key header: it is slow and costs API calls)
 
@@ -17,16 +18,20 @@ Run locally:
 
 from __future__ import annotations
 
+import logging
 import os
+import time
 import warnings
 from contextlib import asynccontextmanager
 from datetime import date, timedelta
+from typing import Literal
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import BaseModel, Field, model_validator
 
-from rag.chain import INDEX_DIR, RagAssistant, build_assistant, flush_traces
+from api.database import InteractionStore
+from rag.chain import INDEX_DIR, RagAssistant, build_assistant, flush_traces, push_feedback_score
 
 warnings.filterwarnings("ignore")  # HF tokenizer notice, langchain-community sunset
 
@@ -56,6 +61,23 @@ class AskResponse(BaseModel):
     question: str
     answer: str
     sources: list[Source] = Field(description="Events retrieved from the index and given to the LLM.")
+    intent: Literal["events", "chat", "off_topic"] = Field(
+        description="events: answered by the RAG; chat / off_topic: fixed answer, no retrieval."
+    )
+    interaction_id: int | None = Field(description="Id to send back with POST /feedback. None if logging failed.")
+    latency_ms: float
+
+
+class FeedbackRequest(BaseModel):
+    interaction_id: int
+    score: Literal[1, -1] = Field(description="1 = thumbs up, -1 = thumbs down.")
+    comment: str | None = Field(None, max_length=1000, examples=["La date de l'événement est fausse."])
+
+
+class FeedbackResponse(BaseModel):
+    interaction_id: int
+    score: int
+    comment: str | None
 
 
 class RebuildRequest(BaseModel):
@@ -95,6 +117,7 @@ async def lifespan(app: FastAPI):
     """Runs once before the first request: load index + LLM into memory."""
     load_dotenv()
     app.state.assistant = build_assistant()
+    app.state.store = InteractionStore()  # data/interactions.db by default
     yield
     flush_traces()  # on shutdown: push any Langfuse trace still in the buffer
 
@@ -102,7 +125,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Puls-Events RAG API",
     description="Assistant de recommandation d'événements culturels à Paris (RAG : FAISS + Mistral via LangChain).",
-    version="0.1.0",
+    version="0.3.0",
     lifespan=lifespan,
 )
 
@@ -110,6 +133,11 @@ app = FastAPI(
 def get_assistant() -> RagAssistant:
     """Dependency: tests override this to inject a fake assistant."""
     return app.state.assistant
+
+
+def get_store() -> InteractionStore:
+    """Dependency: tests override this with a store on a temporary file."""
+    return app.state.store
 
 
 def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
@@ -129,12 +157,44 @@ def health() -> dict:
 
 
 @app.post("/ask", response_model=AskResponse, tags=["rag"])
-def ask(payload: AskRequest, assistant: RagAssistant = Depends(get_assistant)) -> AskResponse:
-    """Answer a question using only the indexed events (RAG)."""
+def ask(
+    payload: AskRequest,
+    assistant: RagAssistant = Depends(get_assistant),
+    store: InteractionStore = Depends(get_store),
+) -> AskResponse:
+    """Answer a question using only the indexed events (RAG). Greetings and
+    off-topic questions get a fixed answer without retrieval. Every call is
+    logged; the returned interaction_id is what POST /feedback expects."""
     if not payload.question.strip():
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Question is empty.")
+    start = time.perf_counter()
     result = assistant.ask(payload.question.strip())
-    return AskResponse(question=result.question, answer=result.answer, sources=result.sources)
+    latency_ms = round((time.perf_counter() - start) * 1000, 1)
+    try:
+        interaction_id = store.log_interaction(
+            question=result.question, intent=result.intent, answer=result.answer,
+            sources=result.sources, latency_ms=latency_ms, trace_id=result.trace_id,
+        )
+    except Exception:
+        # Logging must never cost the user their answer.
+        logging.exception("could not log interaction")
+        interaction_id = None
+    return AskResponse(
+        question=result.question, answer=result.answer, sources=result.sources,
+        intent=result.intent, interaction_id=interaction_id, latency_ms=latency_ms,
+    )
+
+
+@app.post("/feedback", response_model=FeedbackResponse, tags=["rag"])
+def feedback(payload: FeedbackRequest, store: InteractionStore = Depends(get_store)) -> FeedbackResponse:
+    """Record a thumbs up (1) or down (-1), with an optional comment, on an
+    answer returned by /ask. Voting again on the same answer replaces the vote.
+    Also sent to Langfuse as a score on the question's trace when tracing is on."""
+    row = store.log_feedback(payload.interaction_id, payload.score, payload.comment)
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Unknown interaction_id {payload.interaction_id}.")
+    push_feedback_score(row.trace_id, payload.score, row.feedback_comment)
+    return FeedbackResponse(interaction_id=row.id, score=row.feedback_score, comment=row.feedback_comment)
 
 
 @app.post("/rebuild", response_model=RebuildResponse, tags=["ops"], dependencies=[Depends(require_api_key)])

@@ -12,6 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api import main as api_main
+from api.database import InteractionStore
 from rag.chain import RagAnswer
 
 
@@ -37,9 +38,17 @@ class FakeAssistant:
 
 
 @pytest.fixture
-def client():
+def store(tmp_path):
+    """A real SQLite database in a temporary folder: tests the actual SQL,
+    not a mock of it, and leaves nothing behind."""
+    return InteractionStore(f"sqlite:///{tmp_path}/interactions.db")
+
+
+@pytest.fixture
+def client(store):
     fake = FakeAssistant()
     api_main.app.dependency_overrides[api_main.get_assistant] = lambda: fake
+    api_main.app.dependency_overrides[api_main.get_store] = lambda: store
     yield TestClient(api_main.app), fake
     api_main.app.dependency_overrides.clear()
 
@@ -137,3 +146,62 @@ def test_rebuild_rejects_reversed_dates(client, monkeypatch):
     response = test_client.post("/rebuild", json=body, headers={"X-API-Key": "secret"})
     assert response.status_code == 422
     assert api_main.app.state.assistant == "fresh-assistant"
+
+
+# --- Logging and feedback -----------------------------------------------------
+
+
+def test_ask_logs_the_interaction_and_returns_its_id(client, store):
+    test_client, _ = client
+    body = test_client.post("/ask", json={"question": "Une expo ?"}).json()
+
+    assert body["intent"] == "events"
+    assert isinstance(body["interaction_id"], int)
+    assert body["latency_ms"] >= 0
+    rows = store.list_interactions()
+    assert len(rows) == 1
+    assert rows[0]["id"] == body["interaction_id"]
+    assert rows[0]["question"] == "Une expo ?"
+    assert rows[0]["sources"][0]["title"] == "Expo A"
+    assert rows[0]["feedback_score"] is None
+
+
+def test_feedback_is_stored_on_the_interaction(client, store):
+    test_client, _ = client
+    interaction_id = test_client.post("/ask", json={"question": "Une expo ?"}).json()["interaction_id"]
+
+    response = test_client.post(
+        "/feedback", json={"interaction_id": interaction_id, "score": -1, "comment": "  Mauvaise date  "}
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"interaction_id": interaction_id, "score": -1, "comment": "Mauvaise date"}
+    row = store.list_interactions(feedback="negative")[0]
+    assert row["feedback_comment"] == "Mauvaise date"
+    assert row["feedback_at"] is not None
+
+
+def test_feedback_on_unknown_interaction_is_404(client):
+    test_client, _ = client
+    response = test_client.post("/feedback", json={"interaction_id": 999, "score": 1})
+    assert response.status_code == 404
+
+
+@pytest.mark.parametrize("score", [0, 2, "yes"])
+def test_feedback_rejects_scores_other_than_plus_or_minus_one(client, score):
+    test_client, _ = client
+    response = test_client.post("/feedback", json={"interaction_id": 1, "score": score})
+    assert response.status_code == 422
+
+
+def test_answer_is_returned_even_if_logging_fails(client, store, monkeypatch):
+    test_client, _ = client
+
+    def broken(**kwargs):
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(store, "log_interaction", broken)
+    response = test_client.post("/ask", json={"question": "Une expo ?"})
+    assert response.status_code == 200
+    assert response.json()["answer"] == "Je vous recommande Expo A."
+    assert response.json()["interaction_id"] is None
