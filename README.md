@@ -251,7 +251,7 @@ The evaluation runs against `evaluation/index_snapshot/`, a committed copy (28 M
 
 ### Annotated test set
 
-`evaluation/test_set.json` holds 14 questions with a hand-written reference answer and the uids of the events a good retrieval should surface. The references were written from the indexed data (index of 2026-09-25, events from 2026-09-25 to 2026-12-31) and reviewed by hand. Two question types:
+`evaluation/test_set.json` holds 14 questions with a hand-written reference answer and the uids of the events that correctly answer each question. The references were written from the indexed data (index of 2026-09-25, events from 2026-09-25 to 2026-12-31) and reviewed by hand. On 2026-10-25 they were completed: every event the app retrieves (top 8) was judged against the question as asked, plus a keyword search of the index for Halloween; each addition was suggested by Claude and checked by a human. 33 events were added (1 to 12 per question, 65 in total for the 12 recommendation questions); the accepted list is `evaluation/annotation_review.md`, the 26 rejected candidates with their reason are in `evaluation/annotation_rejected.md`. Two question types:
 
 - `recommendation` (12 questions): matching events exist; the answer should list them with dates, venue and price.
 - `no_match` (2 questions): nothing really fits (a Wagner opera, a Japanese cooking class); the answer should say so instead of inventing an event.
@@ -260,7 +260,7 @@ The evaluation runs against `evaluation/index_snapshot/`, a committed copy (28 M
 
 | Metric | Computed by | Question |
 |--------|-------------|----------|
-| `retrieval_recall` | exact, from the annotated uids | Which share of the expected events did the retriever return? |
+| `retrieval_recall` | exact, from the annotated uids | Normalized recall@5: of the correct events the assistant could show (at most 5), how many does it show? A question with 19 correct events and 5 correct ones shown scores 1.0. Plain recall would penalize a recommender for not listing all 19. |
 | `retrieval_precision` | exact, from the annotated uids | Which share of the returned events were expected? |
 | `retrieval_in_period` | exact, from the event dates | For questions asking for a period, which share of the returned events falls inside it? Independent of how complete the annotation is. |
 | `faithfulness` | Ragas, LLM judge | Is every claim in the answer supported by the retrieved chunks? Detects hallucinations. |
@@ -274,13 +274,13 @@ Results are written to `evaluation/results/latest.json` (per question and averag
 
 | Metric | Average | Threshold |
 |--------|---------|-----------|
-| retrieval_recall | 0.96 | 0.6 |
-| retrieval_precision | 0.71 | 0.4 |
+| retrieval_recall | 0.92 | 0.6 |
+| retrieval_precision | 0.82 | 0.4 |
 | retrieval_in_period | 1.00 | 0.9 |
 | faithfulness | 0.95 | 0.5 |
 | answer_relevancy | 0.76 | 0.5 |
 
-Reading: the retriever finds almost every expected event (the one miss is a broad Halloween question with 7 expected events and a 5-event cap). On questions asking for a period, every retrieved event now falls inside it. `retrieval_precision` did not move with the date filter because it is measured against an annotation of one or two events per question while the system returns five; the extra events are often valid (a Sunday jam session for "ce week-end", another November dance show for "en novembre"), which is why `retrieval_in_period` was added. Answers stay faithful to the retrieved events: 13 of 14 score 0.8 or more. The "no match" questions get a clear negative answer followed by the closest alternatives; Ragas scores such answers low on relevancy by design (it treats "nothing matches exactly" as non-committal), which is why one relevancy score is 0 for an answer that is actually right.
+Reading, against the completed references: 82 % of the events shown are correct answers. Recall is 0.92; the misses are informative: for the photography, dance and teen theatre questions, correct events exist that the app ranks 6th to 8th while it shows weaker ones in its top 5, which points at ranking as the next lever. On questions asking for a period, every retrieved event falls inside it. Before the references were completed, precision read 0.71 and recall 0.96: precision was measured against one or two events per question, and Halloween counted 5 correct events out of 19 as a 0.43 recall. Answers stay faithful to the retrieved events: 13 of 14 score 0.8 or more. The "no match" questions get a clear negative answer followed by the closest alternatives; Ragas scores such answers low on relevancy by design (it treats "nothing matches exactly" as non-committal), which is why one relevancy score is 0 for an answer that is actually right.
 
 The successive runs, all on the same 14 questions and judge, show how the evaluation drove the changes:
 
@@ -291,12 +291,13 @@ The successive runs, all on the same 14 questions and judge, show how the evalua
 | 3 | season dates in every prompt, temperature 0 | 0.71 | 0.55 | 0.73 |
 | 4 | calendar text only for dated questions, near-match rule | 0.71 | 0.83 | 0.73 |
 | 5 | period filter in retrieval, direct answers to broad questions, markdown stripped | 0.71 | 0.95 | 0.76 |
+| 5b | run 5 re-scored against the completed references, normalized recall@5 | 0.82 | 0.95 | 0.76 |
 
 Run 5 combines the post-defense changes; faithfulness gains 0.12 and every retrieved event falls in the requested period (0.60 before, 1.00 after). Run 3 is the useful lesson: a prompt addition that looked harmless (season bounds for every question) made the model restrict undated questions to the coming weekend and cost 0.28 of faithfulness. The evaluation caught it, and run 4 recovered it. Precision between runs 1 and 2 reflects the annotation as much as the system: with 20 candidates, questions with only two expected events now return three extra relevant ones that the reference does not list.
 
 ### What we tried to improve precision
 
-Precision stays at 0.71 because it is measured against an annotation of one or two events per question while the system returns five. Four ideas were measured on the snapshot, retrieval only, before keeping or dropping them:
+Before the references were completed, precision stayed at 0.71 because it was measured against one or two events per question while the system returns five. Four ideas were measured on the snapshot, retrieval only, before keeping or dropping them:
 
 | Idea | Result | Decision |
 |------|--------|----------|
@@ -305,7 +306,7 @@ Precision stays at 0.71 because it is measured against an annotation of one or t
 | Distance threshold (drop candidates far from the best match) | Not separable: the five top results sit within 1.0 to 1.18 times the best distance, expected and unexpected events alike (90 % of expected events within 1.07, other events median 1.06). Any useful cut also removes right answers. | Dropped |
 | Exact price and audience filters | Precision and recall unchanged: retrieval already returned free events for "gratuit" questions, because each chunk's header carries the price and audience keywords. The filters remove the remaining leaks (about one event in five on some questions). | Kept, as a guarantee |
 
-The way forward for this metric is the annotation itself: listing every valid event per question would make precision measure the system rather than the reference's size.
+What did move precision was the annotation itself: once every correct event retrieved was listed, precision went from 0.71 to 0.82 with the same answers, because it now measures the system rather than the size of the reference.
 
 Variance: a single run of a 14B judge moves individual scores by 0.1 to 0.3, so conclusions should rest on averages and on reading the answers, not on one number.
 
@@ -338,7 +339,7 @@ Two GitHub Actions workflows in `.github/workflows/`:
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 132 unit tests with coverage. Offline, no secret, about a minute. A failing test, or coverage under 85 %, blocks the pull request. The HTML coverage report is uploaded as an artifact. |
+| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 133 unit tests with coverage. Offline, no secret, about a minute. A failing test, or coverage under 85 %, blocks the pull request. The HTML coverage report is uploaded as an artifact. |
 | `evaluate.yml` | manual (Actions tab, "Run workflow") | Runs `evaluate_rag.py` against the committed index snapshot, then the regression gate, and uploads `evaluation/results/` as a downloadable artifact. Needs the `MISTRAL_API_KEY` repository secret. About 25 minutes; a `skip_ragas` checkbox gives the exact retrieval metrics in 2 minutes. |
 
 The evaluation is not run on every push on purpose: it costs API calls and half an hour. It is run after a prompt, model or retrieval change.
@@ -352,7 +353,7 @@ uv run pytest --cov --cov-report=term --cov-report=html   # with coverage; open 
 
 ### Coverage
 
-Coverage is the share of our code lines executed by the tests. 132 tests, 95 % overall:
+Coverage is the share of our code lines executed by the tests. 133 tests, 95 % overall:
 
 | File | Coverage | Not covered |
 |------|----------|-------------|
@@ -516,6 +517,7 @@ Streamlit's `AppTest` runs each page headlessly; the API is faked by patching `r
 | Test | What it checks | Why it matters |
 |------|----------------|----------------|
 | `test_retrieval_recall` | Share of expected uids found; `None` when nothing is expected. | Exact retrieval metric, no judge needed. |
+| `test_retrieval_recall_is_normalized_to_what_can_be_shown` | 19 correct events and 5 correct shown score 1.0; 3 correct of 5 shown score 0.6. | Recall matched to what a 5-event recommender can do. |
 | `test_retrieval_precision` | Share of retrieved uids that were expected; `None` when nothing is expected or retrieved. | Measures noise in what reaches the LLM. |
 | `test_summarize_ignores_missing_values` | Averages skip `None` values instead of counting them as 0. | `no_match` questions must not drag retrieval scores down. |
 | `test_test_set_is_well_formed` | Unique ids, non-empty question and reference, valid type, expected uids on recommendation questions. | The annotated set is a deliverable; a typo must fail before a 10-minute run. |
