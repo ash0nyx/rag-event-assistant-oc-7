@@ -366,8 +366,8 @@ Coverage is the share of our code lines executed by the tests. 133 tests, 95 % o
 | `scripts/build_index.py` | 95 % | creation of the real Mistral embeddings client |
 | `ui/Chat.py` | 94 % | network-error toasts |
 | `ui/pages/1_Tableau_de_bord.py` | 93 % | a few empty-data branches |
+| `rag/chain.py` | 92 % | loading the real index and Mistral clients |
 | `rag/intent.py` | 92 % | creation of the real `ministral-3b` client |
-| `rag/chain.py` | 89 % | loading the real index and Mistral clients |
 | **Total** | **95 %** | |
 
 What is not covered is the wiring to the real Mistral API, exercised by `scripts/api_test.py` and the evaluation instead. Four command-line tools that only run against the real APIs (`api_test.py`, `ask_question.py`, `evaluate_rag.py`, `evaluate_intent.py`) are excluded from the measure in `pyproject.toml`; their logic lives in measured modules.
@@ -584,6 +584,12 @@ Streamlit's `AppTest` runs each page headlessly; the API is faked by patching `r
 
 ## Status
 
-All six steps of the mission are implemented: environment, data pipeline, FAISS index, RAG chain, REST API, evaluation, Docker. Defended in October 2026; technical report and slides in `docs/`. Added after the defense, following the end of the OpenClassrooms RAG course: Streamlit chat and dashboard, intent classifier, interaction log with user feedback.
+All six steps of the mission are implemented: environment, data pipeline, FAISS index, RAG chain, REST API, evaluation, Docker. Defended in October 2026; technical report and slides in `docs/`. Added after the defense, following the end of the OpenClassrooms RAG course:
 
-Known limits: the period filter uses each event's first and last session dates, so recurring events can overlap a window they do not actually fall on; the index is a snapshot and must be rebuilt to stay current; the data source is the City of Paris agenda, rich on public and cultural events, thin on commercial nightlife; the 14B model available on the free tier still misreads some borderline questions, and a single judge run carries noticeable variance.
+- v0.3.0: Streamlit chat and dashboard, intent classifier, interaction log with user feedback, coverage gate in CI.
+- v0.4.0: date-aware retrieval, price and audience filters, direct answers to broad questions, intent rules (faithfulness 0.83 to 0.95, retrieved events inside the requested period 60 % to 100 %).
+- v0.4.1: completed reference answers and normalized recall@5 (precision 0.82, recall 0.92), ranking experiments documented.
+
+Next candidates, measured as described above: a larger Mistral model for generation, judging and re-ranking; more Open Agenda calendars to widen coverage; conversation history.
+
+Known limits: the period filter uses each event's first and last session dates, so recurring events can overlap a window they do not actually fall on; the index is a snapshot and must be rebuilt to stay current; the data source is the City of Paris agenda, rich on public and cultural events, thin on commercial nightlife and on events published elsewhere (the Cineffable lesbian film festival, for example, is not in it); the 14B model available on the free tier still misreads some borderline questions, and a single judge run carries noticeable variance.
