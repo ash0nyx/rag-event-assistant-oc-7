@@ -97,7 +97,7 @@ uv run python scripts/ask_question.py "Une expo gratuite pour enfants ?" --show-
 
 The chain lives in `rag/chain.py` (`RagAssistant` class) and runs in two phases:
 
-1. **Retrieval.** The question is embedded with `mistral-embed` and FAISS returns the 20 closest chunks. Chunks whose event is already over (last session before today) are dropped, then one chunk per event is kept (best-ranked first), at most 5 events. No LLM is involved in this phase.
+1. **Retrieval.** The question is embedded with `mistral-embed` and FAISS returns the 20 closest chunks. Chunks whose event is already over (last session before today) are dropped, then one chunk per event is kept (best-ranked first), at most 5 events. Similarity chooses the events; they are then sorted by their next session (ongoing events first), so the answer reads in date order. No LLM is involved in this phase.
 
    **Date-aware retrieval.** Vector similarity knows nothing about dates: "novembre" is a word to it, not a constraint, so "un spectacle de danse en novembre" also brought back September and December shows. When the question asks for a period, Python turns it into dates (`requested_period` in `rag/chain.py`: aujourd'hui, ce soir, demain, ce week-end, cette semaine, ce mois-ci, le mois prochain, a month name, a season), fetches 80 candidates instead of 20, and keeps only the events whose session window overlaps that period. If none does, the unfiltered candidates are kept so the model can say "nothing this weekend" and offer the nearest dates. On the 6 dated test questions, the share of retrieved events inside the requested period went from 60 % to 100 %. The same mechanism applies two more explicit constraints: "gratuit" keeps free events (price text starting with "Gratuit", except "sous condition" entries that state a price), and "enfants", "famille", "ados", "jeunes" keep events with the matching audience keyword or "Tout public". Filters are applied one by one; one that would leave nothing is skipped. Limit: the filter uses an event's first and last session dates, so an event held every Thursday from October to December overlaps a weekend window although it never happens on a weekend.
 2. **Generation.** The kept chunks are pasted into a French system prompt together with today's date, and `ministral-14b-latest` writes the answer. The prompt tells the model to use only the provided events, to give title, dates, venue and price, and, when nothing matches exactly, to say so and then offer the closest events from the context with the difference stated. The prompt is in French on purpose: Mistral models are trained heavily on French, the data and the expected answer are French, and mixing languages costs a small model more than it gains.
@@ -341,7 +341,7 @@ Two GitHub Actions workflows in `.github/workflows/`:
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 136 unit tests with coverage. Offline, no secret, about a minute. A failing test, or coverage under 85 %, blocks the pull request. The HTML coverage report is uploaded as an artifact. |
+| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 137 unit tests with coverage. Offline, no secret, about a minute. A failing test, or coverage under 85 %, blocks the pull request. The HTML coverage report is uploaded as an artifact. |
 | `evaluate.yml` | manual (Actions tab, "Run workflow") | Runs `evaluate_rag.py` against the committed index snapshot, then the regression gate, and uploads `evaluation/results/` as a downloadable artifact. Needs the `MISTRAL_API_KEY` repository secret. About 25 minutes; a `skip_ragas` checkbox gives the exact retrieval metrics in 2 minutes. |
 
 The evaluation is not run on every push on purpose: it costs API calls and half an hour. It is run after a prompt, model or retrieval change.
@@ -355,7 +355,7 @@ uv run pytest --cov --cov-report=term --cov-report=html   # with coverage; open 
 
 ### Coverage
 
-Coverage is the share of our code lines executed by the tests. 136 tests, 95 % overall:
+Coverage is the share of our code lines executed by the tests. 137 tests, 95 % overall:
 
 | File | Coverage | Not covered |
 |------|----------|-------------|
@@ -417,6 +417,7 @@ FAISS is replaced by a fake store that returns scripted chunks, and the LLM by L
 | Test | What it checks | Why it matters |
 |------|----------------|----------------|
 | `test_dedupe_keeps_first_chunk_per_event_and_caps_count` | Only the best-ranked chunk of each event survives, and the list stops at `max_events`. | A long event must not fill every slot of the answer. |
+| `test_sort_by_date_orders_events_chronologically` | The chosen events are sorted by next session and start time; an ongoing event counts as today; an event without a date goes last. | Answers read in date order, not in similarity order. |
 | `test_describe_today_computes_the_coming_weekend_in_french` | The date sentence gives today and the coming Saturday and Sunday in French, for a weekday, a Saturday and a Sunday. | Python does the calendar arithmetic, not the LLM, which gets it wrong. |
 | `test_format_context_numbers_the_events` | Retrieved chunks are rendered as numbered `[Événement i]` blocks. | The prompt must be readable and stable for the LLM. |
 | `test_ask_returns_answer_and_sources` | `ask()` returns the LLM answer, asks FAISS for `top_k_chunks`, and lists deduplicated sources in rank order with their URL. | This is the contract the API relies on. |
