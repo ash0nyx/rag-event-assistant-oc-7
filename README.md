@@ -8,7 +8,8 @@ OpenClassrooms AI Engineer path, project 7. The technical report (in French, fol
 
 - Python 3.12, managed with [uv](https://docs.astral.sh/uv/)
 - LangChain, FAISS (vector store), Mistral (`mistral-embed` for embeddings, `ministral-14b-latest` for generation)
-- FastAPI and uvicorn (REST API), pytest, Ragas (evaluation), Docker (local deployment), Langfuse (optional tracing)
+- FastAPI and uvicorn (REST API), Streamlit (chat and dashboard), SQLAlchemy + SQLite (interaction log and feedback)
+- pytest, Ragas (evaluation), Docker (local deployment), Langfuse (optional tracing)
 
 ## Setup
 
@@ -105,7 +106,8 @@ Swagger documentation is generated at [http://127.0.0.1:8000/docs](http://127.0.
 | Method | Route | Purpose |
 |--------|-------|---------|
 | `GET` | `/health` | Liveness check, used by Docker and the demo. |
-| `POST` | `/ask` | Body `{"question": "..."}`. Returns the answer and the retrieved sources. Questions shorter than 3 characters or blank are rejected with a 422. |
+| `POST` | `/ask` | Body `{"question": "..."}`. Returns the answer, the retrieved sources, the detected `intent`, the `latency_ms` and an `interaction_id`. Every call is logged. Questions shorter than 3 characters or blank are rejected with a 422. |
+| `POST` | `/feedback` | Body `{"interaction_id": 12, "score": 1, "comment": "..."}` with `score` 1 (thumbs up) or -1 (thumbs down). Stores the vote on the logged answer (a second vote replaces the first) and sends it to Langfuse as a score. Unknown id: 404. |
 | `POST` | `/rebuild` | Re-fetches Open Agenda, rebuilds the FAISS index and reloads it in memory. Optional body `{"max_events": 500, "from_date": "2026-09-25", "to_date": "2026-10-31"}`; defaults are 500 events from today to today + 60 days. Requires the `X-API-Key` header matching `RAG_API_KEY`; without a configured key the route is closed. |
 
 Example:
@@ -129,16 +131,44 @@ uv run python scripts/api_test.py --question "Une expo gratuite ?"
 
 It checks `/health`, asks three demo questions, and verifies that an empty question returns a 422. Unlike the unit tests, it uses the real index and the real LLM.
 
-## Docker
-
-Run the API in a container, without installing Python or uv on the machine. The index must exist first (`data/index/`, built by the pipeline above or by a `/rebuild` call).
+## Chat app, intent classifier and user feedback
 
 ```bash
-docker compose up --build        # build the image and start the API on port 8000
+uv run uvicorn api.main:app            # terminal 1: the API
+uv run streamlit run ui/Chat.py        # terminal 2: http://localhost:8501
+```
+
+The Streamlit app has two pages:
+
+- **Chat** (`ui/Chat.py`): ask a question, read the answer with its sources as links, rate it with a thumbs up or down, and after a thumbs down explain what was wrong. The page only talks to the API over HTTP (`/ask`, `/feedback`): it holds no model and no index, so any other front-end could replace it.
+- **Tableau de bord** (`ui/pages/1_Tableau_de_bord.py`): headline numbers (questions, satisfaction rate, feedback rate, median RAG latency, share answered without RAG), questions per day, split by intent, latency over time, the answers users rated badly with their comments, the full interaction table, and the latest offline evaluation scores. It reads the interactions table directly: it needs data, not the model.
+
+**Intent classifier** (`rag/intent.py`). Before any retrieval, each message is classified as `events` (goes to the RAG), `chat` (greeting, thanks, "who are you?") or `off_topic` (weather, maths, code, news). The last two get a fixed answer, with no retrieval and no 14B call. Two stages, cheapest first: regular expressions for obvious small talk, then `ministral-3b-latest` answering with one label. When the model's answer cannot be parsed or the call fails, the default is `events`: running the RAG for nothing is cheaper than refusing a real question.
+
+Measured on `evaluation/intent_set.json` (32 labelled messages: the 14 RAG test questions plus extra event, small-talk and off-topic ones) with `uv run python scripts/evaluate_intent.py`:
+
+| Accuracy | Real event questions refused | Median latency |
+|----------|------------------------------|----------------|
+| 0.97 | 0 | 0.24 s |
+
+The one miss sends "Que sais-tu faire ?" to the RAG instead of the fixed presentation, the safe direction. End to end in Docker, a greeting is answered in under a millisecond, an off-topic question in about 0.5 s, and an events question in about 3.5 s.
+
+**Interaction log and feedback** (`api/database.py`). Every `/ask` call is stored with SQLAlchemy in `data/interactions.db` (SQLite, on the Docker volume): question, intent, answer, sources, latency, Langfuse trace id, then the user's vote and comment. Switching to PostgreSQL is a change of `INTERACTIONS_DB_URL`, not of code. Logging never blocks an answer: if the write fails, the answer is still returned without an id. With Langfuse enabled, each vote is also attached to the question's trace as a `user_feedback` score, so traces can be filtered by satisfaction.
+
+Not implemented on purpose: conversation history. Each question is answered on its own, as in the brief; follow-up questions like "et le dimanche ?" would need the last exchanges in the prompt.
+
+## Docker
+
+Run the API and the Streamlit app in containers, without installing Python or uv on the machine. The index must exist first (`data/index/`, built by the pipeline above or by a `/rebuild` call).
+
+```bash
+docker compose up --build        # build the image, start the API (port 8000) and the app (port 8501)
 docker compose up -d             # same, in the background
 docker compose logs -f           # follow the logs
-docker compose down              # stop and remove the container
+docker compose down              # stop and remove the containers
 ```
+
+Both services use the same image. The `ui` service waits for the API to be healthy, reaches it at `http://api:8000` on the compose network, and mounts `data/` and `evaluation/results/` read-only for the dashboard.
 
 Without Compose:
 
@@ -147,7 +177,7 @@ docker build -t puls-events-rag .
 docker run -p 8000:8000 --env-file .env -v ./data:/app/data puls-events-rag
 ```
 
-Then `http://localhost:8000/docs` and `uv run python scripts/api_test.py` work exactly as with a local server.
+Then `http://localhost:8000/docs`, `http://localhost:8501` and `uv run python scripts/api_test.py` work exactly as with a local server.
 
 How the image is built and run, and why:
 
@@ -261,7 +291,7 @@ Two GitHub Actions workflows in `.github/workflows/`:
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 47 unit tests. Offline, no secret, about a minute. A failing test blocks the pull request. |
+| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 85 unit tests. Offline, no secret, about a minute. A failing test blocks the pull request. |
 | `evaluate.yml` | manual (Actions tab, "Run workflow") | Runs `evaluate_rag.py` against the committed index snapshot, then the regression gate, and uploads `evaluation/results/` as a downloadable artifact. Needs the `MISTRAL_API_KEY` repository secret. About 25 minutes; a `skip_ragas` checkbox gives the exact retrieval metrics in 2 minutes. |
 
 The evaluation is not run on every push on purpose: it costs API calls and half an hour. It is run after a prompt, model or retrieval change.
@@ -340,6 +370,50 @@ FastAPI's `TestClient` calls the app in-process. The assistant dependency is ove
 | `test_rebuild_runs_pipeline_and_reloads_assistant` | With the right key, the pipeline is called with the given dates and cap, and the in-memory assistant is replaced. | The fresh index must be served without restarting the API. |
 | `test_rebuild_defaults_to_today_plus_60_days` | With no body, the window is today to today + 60 days. | A scheduled rebuild with no parameters must always cover the near future. |
 | `test_rebuild_rejects_reversed_dates` | `to_date` before `from_date` returns 422. | Catch a typo before spending a fetch and a re-index. |
+| `test_ask_logs_the_interaction_and_returns_its_id` | `/ask` returns `intent`, `latency_ms` and an `interaction_id`, and the row is in the database with its sources. | The id is what links a vote to an answer. |
+| `test_feedback_is_stored_on_the_interaction` | `/feedback` stores the score and the trimmed comment on the right row. | The feedback loop of the course. |
+| `test_feedback_on_unknown_interaction_is_404` | A vote on a missing id returns 404. | No silent loss of feedback. |
+| `test_feedback_rejects_scores_other_than_plus_or_minus_one` | 0, 2 or a string are rejected with 422. | Only thumbs up or down reach the database. |
+| `test_answer_is_returned_even_if_logging_fails` | With a broken database the user still gets the answer, without an id. | Logging must never cost an answer. |
+
+### `tests/test_intent.py`
+
+The small model is replaced by `FakeListChatModel` returning scripted labels.
+
+| Test | What it checks | Why it matters |
+|------|----------------|----------------|
+| `test_small_talk_is_caught_by_rules_without_calling_the_model` | "Bonjour", "Merci beaucoup.", "OK"... are `chat` without a model call. | Free and instant for the most frequent messages. |
+| `test_greeting_followed_by_a_request_goes_to_the_model` | "Bonjour, un concert ce soir ?" is not swallowed by the rules. | Rules only take whole small-talk messages. |
+| `test_parse_intent` | Case, dashes, punctuation and extra words are tolerated; unparseable output falls back to `events`. | Small models do not always answer with exactly one word. |
+| `test_model_error_falls_back_to_events` | An API error during classification sends the question to the RAG. | The classifier must never block an answer. |
+| `test_without_a_model_everything_but_small_talk_is_events` | With no model configured, only the rules apply. | Safe degraded mode. |
+| `test_off_topic_question_gets_fixed_answer_and_skips_retrieval` | An off-topic question gets the fixed answer, no sources, and FAISS is never queried. | The point of the classifier: no retrieval, no 14B call. |
+| `test_events_question_goes_through_the_rag` | An events question still gets the RAG answer and its sources. | The classifier must not change the main path. |
+
+### `tests/test_database.py`
+
+A real SQLite file in a temporary folder rather than mocks: as fast, and it also checks the SQL.
+
+| Test | What it checks | Why it matters |
+|------|----------------|----------------|
+| `test_log_interaction_returns_increasing_ids_and_keeps_fields` | Ids increase, newest first, sources survive the JSON round trip, trace id kept. | The dashboard and the feedback depend on these fields. |
+| `test_log_feedback_updates_and_can_be_changed` | A second vote replaces the first. | Users change their mind. |
+| `test_log_feedback_unknown_id_returns_none` | Unknown id: nothing written, `None` returned. | Lets the API answer 404. |
+| `test_blank_comment_is_stored_as_none` | A comment of spaces is stored as empty. | Clean data for the dashboard. |
+| `test_list_interactions_filters_by_feedback` | Positive, negative, unrated filters and the row limit. | The dashboard's filter. |
+| `test_summary_counts_and_rates` | Totals, satisfaction and feedback rates, split by intent; no division by zero when nothing is rated. | The headline numbers of the dashboard. |
+
+### `tests/test_ui.py`
+
+Streamlit's `AppTest` runs each page headlessly; the API is faked by patching `requests`, the dashboard reads a temporary database.
+
+| Test | What it checks | Why it matters |
+|------|----------------|----------------|
+| `test_chat_shows_answer_sources_and_sends_a_vote` | A question shows the answer and the source links; a thumbs up posts score 1. | The main user path. |
+| `test_chat_down_vote_offers_a_comment_box` | A thumbs down posts -1 at once, then the typed comment is sent. | Negative feedback is the useful kind; the comment says why. |
+| `test_chat_reports_an_unreachable_api` | With the API down the page shows a clear message instead of crashing. | Demo-day resilience. |
+| `test_dashboard_with_no_data_says_so` | Empty database: an explanatory message, no error. | First run. |
+| `test_dashboard_shows_kpis_and_negative_feedback` | Question count, satisfaction, median latency and the badly rated answer are shown. | The dashboard's numbers come from the data. |
 
 ### `tests/test_evaluation.py`
 
@@ -350,6 +424,8 @@ FastAPI's `TestClient` calls the app in-process. The assistant dependency is ove
 | `test_summarize_ignores_missing_values` | Averages skip `None` values instead of counting them as 0. | `no_match` questions must not drag retrieval scores down. |
 | `test_test_set_is_well_formed` | Unique ids, non-empty question and reference, valid type, expected uids on recommendation questions. | The annotated set is a deliverable; a typo must fail before a 10-minute run. |
 | `test_latest_scores_meet_thresholds` | Averages in `evaluation/results/latest.json` are above the thresholds. Skipped when no results exist. | Regression gate: a prompt or model change that degrades answers fails `pytest`. |
+| `test_intent_set_is_well_formed` | The intent set covers the three classes, no empty message. | A typo must fail before a run. |
+| `test_intent_classifier_meets_thresholds` | Latest intent results: accuracy at least 0.85 and zero real event questions refused. | Refusing a real question is the costly error. |
 
 ## Project structure
 
@@ -365,24 +441,31 @@ FastAPI's `TestClient` calls the app in-process. The assistant dependency is ove
 ├── pyproject.toml           # dependencies (managed by uv); rag/, scripts/ and api/ are installed as packages
 ├── requirements.txt         # exported from uv.lock, for pip users
 ├── Dockerfile               # image: Python 3.12 + locked dependencies + code, non-root
-├── docker-compose.yml       # one-command run: ports, .env, data volume
+├── docker-compose.yml       # one-command run: api (8000) and ui (8501), .env, data volume
 ├── .dockerignore
 ├── api/
-│   └── main.py              # FastAPI app: /health, /ask, /rebuild
+│   ├── main.py              # FastAPI app: /health, /ask, /feedback, /rebuild
+│   └── database.py          # SQLAlchemy interaction log and feedback (SQLite by default)
 ├── rag/
-│   └── chain.py             # RagAssistant: retrieval (FAISS) + generation (Mistral), prompt
+│   ├── chain.py             # RagAssistant: intent, retrieval (FAISS), generation (Mistral), prompt
+│   └── intent.py            # intent classifier: rules + ministral-3b, fixed answers
+├── ui/
+│   ├── Chat.py              # Streamlit chat with thumbs up/down and comments (talks to the API)
+│   └── pages/1_Tableau_de_bord.py  # Streamlit dashboard: usage, satisfaction, latency, evaluation
 ├── scripts/
 │   ├── fetch_events.py      # Open Agenda API -> data/raw/events_raw.json
 │   ├── clean_events.py      # raw JSON -> data/processed/events.csv
 │   ├── build_index.py       # events.csv -> chunks -> Mistral embeddings -> data/index/
 │   ├── ask_question.py      # command-line access to the chain, without the API
 │   ├── api_test.py          # functional test of a running API (real index, real LLM)
-│   └── evaluate_rag.py      # Ragas + retrieval metrics on the annotated set -> evaluation/results/
+│   ├── evaluate_rag.py      # Ragas + retrieval metrics on the annotated set -> evaluation/results/
+│   └── evaluate_intent.py   # intent classifier accuracy on evaluation/intent_set.json
 ├── .github/workflows/
 │   ├── ci.yml               # unit tests on every push and pull request
 │   └── evaluate.yml         # on-demand RAG evaluation, results uploaded as artifact
 ├── evaluation/
 │   ├── test_set.json        # 14 annotated questions (reference answer, expected event uids)
+│   ├── intent_set.json      # 32 messages labelled events / chat / off_topic
 │   ├── index_snapshot/      # the FAISS index the test set was annotated on (committed, 28 MB)
 │   └── results/             # latest.json and timestamped runs
 └── tests/
@@ -391,11 +474,14 @@ FastAPI's `TestClient` calls the app in-process. The assistant dependency is ove
     ├── test_build_index.py
     ├── test_chain.py
     ├── test_api.py
+    ├── test_intent.py
+    ├── test_database.py
+    ├── test_ui.py
     └── test_evaluation.py
 ```
 
 ## Status
 
-All six steps of the mission are implemented: environment, data pipeline, FAISS index, RAG chain, REST API, evaluation, Docker. Technical report in `docs/`. Remaining: presentation.
+All six steps of the mission are implemented: environment, data pipeline, FAISS index, RAG chain, REST API, evaluation, Docker. Defended in October 2026; technical report and slides in `docs/`. Added after the defense, following the end of the OpenClassrooms RAG course: Streamlit chat and dashboard, intent classifier, interaction log with user feedback.
 
 Known limits: the date filter only removes finished events, it does not yet match a requested period ("en novembre") before the vector search; the index is a snapshot and must be rebuilt to stay current; the data source is the City of Paris agenda, rich on public and cultural events, thin on commercial nightlife; the 14B model available on the free tier still misreads some borderline questions, and a single judge run carries noticeable variance.

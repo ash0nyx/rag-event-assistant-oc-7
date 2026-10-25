@@ -1,4 +1,5 @@
-# Image for the Puls-Events RAG API.
+# Image for the Puls-Events RAG API and its Streamlit front-end (same image,
+# two services in docker-compose.yml).
 #
 # What goes in: Python, the locked dependencies, the code.
 # What stays out: secrets (.env, passed at run time) and data/ (index and CSV,
@@ -26,6 +27,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY api/ api/
 COPY rag/ rag/
 COPY scripts/ scripts/
+COPY ui/ ui/
 COPY README.md ./
 RUN uv sync --frozen --no-dev
 

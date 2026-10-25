@@ -1,11 +1,34 @@
-# One command to build and run the API: docker compose up --build
+# One command to build and run the API and the Streamlit app:
+#   docker compose up --build
+#   API + Swagger: http://localhost:8000/docs   Chat + dashboard: http://localhost:8501
 services:
   api:
     build: .
     image: puls-events-rag
     ports:
       - "8000:8000"          # host:container
-    env_file: .env           # MISTRAL_API_KEY, OPENAGENDA_API_KEY, RAG_API_KEY
+    env_file: .env           # MISTRAL_API_KEY, OPENAGENDA_API_KEY, RAG_API_KEY, LANGFUSE_* (optional)
     volumes:
-      - ./data:/app/data     # index and CSV stay on the host; /rebuild updates them
+      - ./data:/app/data     # index, CSV and interactions.db stay on the host; /rebuild updates them
+    restart: unless-stopped
+
+  ui:
+    image: puls-events-rag   # same image as the API, different command
+    command: ["uv", "run", "--no-sync", "streamlit", "run", "ui/Chat.py",
+              "--server.port", "8501", "--server.address", "0.0.0.0", "--server.headless", "true"]
+    ports:
+      - "8501:8501"
+    environment:
+      API_URL: http://api:8000   # the API's service name on the compose network
+    volumes:
+      - ./data:/app/data:ro                              # dashboard reads interactions.db
+      - ./evaluation/results:/app/evaluation/results:ro  # dashboard shows the last offline scores
+    healthcheck:                    # the image's check targets the API; Streamlit has its own endpoint
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+    depends_on:
+      api:
+        condition: service_healthy  # wait for the index and models to be loaded
     restart: unless-stopped
