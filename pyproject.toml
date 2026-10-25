@@ -29,6 +29,7 @@ dependencies = [
 dev = [
     "httpx>=0.28.1",
     "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
 ]
 
 # Install the project itself into the venv so `rag` and `scripts` are importable
@@ -44,3 +45,22 @@ packages = ["rag", "scripts", "api"]
 # Make the project root importable so tests can do `from scripts import fetch_events`
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+# Measure our code only, not the libraries.
+source = ["api", "rag", "scripts", "ui"]
+# Command-line tools that only run against the real Mistral / Open Agenda APIs.
+# They are integration tools, not unit-testable offline (api_test.py is itself
+# a functional test); their logic lives in rag/ and scripts/, which is measured.
+omit = [
+    "scripts/api_test.py",
+    "scripts/ask_question.py",
+    "scripts/evaluate_intent.py",
+    "scripts/evaluate_rag.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+# The `if __name__ == "__main__":` line of each script only calls main().
+exclude_also = ['if __name__ == "__main__":']

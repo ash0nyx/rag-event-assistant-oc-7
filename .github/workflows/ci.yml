@@ -21,5 +21,14 @@ jobs:
       - name: Install dependencies (exact versions from uv.lock)
         run: uv sync --frozen
 
-      - name: Run tests
-        run: uv run pytest -v
+      # Coverage: share of our code executed by the tests, per file. The job
+      # fails under 85 %, so a feature merged without tests is caught.
+      - name: Run tests with coverage
+        run: uv run pytest -v --cov --cov-report=term --cov-report=html --cov-fail-under=85
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: htmlcov/

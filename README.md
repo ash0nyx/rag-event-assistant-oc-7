@@ -291,7 +291,7 @@ Two GitHub Actions workflows in `.github/workflows/`:
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 85 unit tests. Offline, no secret, about a minute. A failing test blocks the pull request. |
+| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 96 unit tests with coverage. Offline, no secret, about a minute. A failing test, or coverage under 85 %, blocks the pull request. The HTML coverage report is uploaded as an artifact. |
 | `evaluate.yml` | manual (Actions tab, "Run workflow") | Runs `evaluate_rag.py` against the committed index snapshot, then the regression gate, and uploads `evaluation/results/` as a downloadable artifact. Needs the `MISTRAL_API_KEY` repository secret. About 25 minutes; a `skip_ragas` checkbox gives the exact retrieval metrics in 2 minutes. |
 
 The evaluation is not run on every push on purpose: it costs API calls and half an hour. It is run after a prompt, model or retrieval change.
@@ -300,7 +300,27 @@ The evaluation is not run on every push on purpose: it costs API calls and half 
 
 ```bash
 uv run pytest -v
+uv run pytest --cov --cov-report=term --cov-report=html   # with coverage; open htmlcov/index.html
 ```
+
+### Coverage
+
+Coverage is the share of our code lines executed by the tests. 96 tests, 95 % overall:
+
+| File | Coverage | Not covered |
+|------|----------|-------------|
+| `api/database.py` | 100 % | |
+| `api/main.py` | 100 % | |
+| `scripts/clean_events.py` | 100 % | |
+| `scripts/fetch_events.py` | 100 % | |
+| `scripts/build_index.py` | 95 % | creation of the real Mistral embeddings client |
+| `ui/pages/1_Tableau_de_bord.py` | 93 % | a few empty-data branches |
+| `rag/intent.py` | 92 % | creation of the real `ministral-3b` client |
+| `ui/Chat.py` | 91 % | network-error toasts |
+| `rag/chain.py` | 89 % | loading the real index and Mistral clients |
+| **Total** | **95 %** | |
+
+What is not covered is the wiring to the real Mistral API, exercised by `scripts/api_test.py` and the evaluation instead. Four command-line tools that only run against the real APIs (`api_test.py`, `ask_question.py`, `evaluate_rag.py`, `evaluate_intent.py`) are excluded from the measure in `pyproject.toml`; their logic lives in measured modules.
 
 Tests are written in Python with [pytest](https://docs.pytest.org/). No other test library is used: fakes are plain Python classes, and `monkeypatch`, `tmp_path` and `pytest.raises` are built into pytest.
 
@@ -353,7 +373,23 @@ FAISS is replaced by a fake store that returns scripted chunks, and the LLM by L
 | `test_prompt_contains_rules_context_and_question` | The rendered prompt holds the rules, today's date, the retrieved chunks and the user question. | The prompt is the whole contract with the model; a missing piece silently degrades answers. |
 | `test_generate_retries_on_rate_limit` | Two HTTP 429 responses then a success: the call is retried with waits of 2 s then 4 s. | The free tier rate-limits; the chain must survive it without real waiting in tests. |
 | `test_ask_with_no_hits_still_answers` | With no retrieved chunk, the chain still returns an answer and an empty source list. | Empty context is a normal case, not an error. |
+| `test_traced_ask_records_spans_and_returns_the_trace_id` | With a fake Langfuse client, a question opens the `ask` and `retrieve` spans with the right content and returns the trace id. | The trace id links a user's vote to the trace. |
+| `test_push_feedback_score_sends_a_boolean_score` | A thumbs down becomes a `user_feedback` score of 0 with its comment on the trace; no trace id, nothing sent. | Feedback visible in Langfuse. |
+| `test_push_feedback_score_is_silent_without_keys` / `test_flush_traces_only_with_keys` | Without keys nothing is sent and nothing breaks. | Observability stays optional. |
 | `test_tracing_is_off_without_langfuse_keys` | Without `LANGFUSE_*` keys tracing is off and `langfuse` is not imported; an explicit `tracing=False` wins over the keys. | Observability must stay optional: tests, CI and Docker work without an account. |
+
+### `tests/test_pipeline.py`
+
+The whole pipeline and the command-line entry points, offline: Open Agenda faked, `FakeEmbeddings`, files in a temporary folder.
+
+| Test | What it checks | Why it matters |
+|------|----------------|----------------|
+| `test_rebuild_index_runs_fetch_clean_and_index` | The `/rebuild` pipeline fetches with the requested window, cleans (suburb dropped), indexes, writes the three outputs and returns the counts. | The route that refreshes production data. |
+| `test_rebuild_index_without_openagenda_key_is_a_server_error` | No Open Agenda key: a clear 500, nothing written. | Misconfiguration fails loudly. |
+| `test_fetch_events_cli_writes_the_raw_dump_with_its_window` | `--from-date`/`--to-date` reach the API and the dump records its window. | The CI evaluation and the manual refresh use this command. |
+| `test_fetch_events_cli_stops_without_api_key` | Missing key: the script stops with an explicit message. | |
+| `test_clean_then_build_index_clis` | The clean and build commands chain from raw JSON to a saved FAISS index. | The documented way to rebuild by hand. |
+| `test_api_startup_loads_the_assistant_and_the_database` | The API startup builds the assistant once and opens the interaction database. | The lifespan wiring. |
 
 ### `tests/test_api.py`
 
@@ -412,6 +448,7 @@ Streamlit's `AppTest` runs each page headlessly; the API is faked by patching `r
 | `test_chat_shows_answer_sources_and_sends_a_vote` | A question shows the answer and the source links; a thumbs up posts score 1. | The main user path. |
 | `test_chat_down_vote_offers_a_comment_box` | A thumbs down posts -1 at once, then the typed comment is sent. | Negative feedback is the useful kind; the comment says why. |
 | `test_chat_reports_an_unreachable_api` | With the API down the page shows a clear message instead of crashing. | Demo-day resilience. |
+| `test_example_buttons_ask_the_question_and_history_shows_no_stray_values` | A suggestion button sends its question; after a second question, the history is re-rendered once, with no stray `None`. | Regression test for a bug found by hand: Streamlit "magic" displayed the value of a one-line `if/else`. |
 | `test_dashboard_with_no_data_says_so` | Empty database: an explanatory message, no error. | First run. |
 | `test_dashboard_shows_kpis_and_negative_feedback` | Question count, satisfaction, median latency and the badly rated answer are shown. | The dashboard's numbers come from the data. |
 
@@ -477,6 +514,7 @@ Streamlit's `AppTest` runs each page headlessly; the API is faked by patching `r
     ├── test_intent.py
     ├── test_database.py
     ├── test_ui.py
+    ├── test_pipeline.py
     └── test_evaluation.py
 ```
 
