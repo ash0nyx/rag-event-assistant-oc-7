@@ -97,7 +97,7 @@ uv run python scripts/ask_question.py "Une expo gratuite pour enfants ?" --show-
 
 The chain lives in `rag/chain.py` (`RagAssistant` class) and runs in two phases:
 
-1. **Retrieval.** The question is embedded with `mistral-embed` and FAISS returns the 20 closest chunks. Chunks whose event is already over (last session before today) are dropped, then one chunk per event is kept (best-ranked first), at most 5 events. No LLM is involved in this phase.
+1. **Retrieval.** The question is embedded with `mistral-embed` and FAISS returns the 20 closest chunks. Chunks whose event is already over (last session before today) are dropped, then one chunk per event is kept (best-ranked first), at most 5 events. Similarity chooses the events; they are then sorted by their next session (ongoing events first), so the answer reads in date order. No LLM is involved in this phase.
 
    **Date-aware retrieval.** Vector similarity knows nothing about dates: "novembre" is a word to it, not a constraint, so "un spectacle de danse en novembre" also brought back September and December shows. When the question asks for a period, Python turns it into dates (`requested_period` in `rag/chain.py`: aujourd'hui, ce soir, demain, ce week-end, cette semaine, ce mois-ci, le mois prochain, a month name, a season), fetches 80 candidates instead of 20, and keeps only the events whose session window overlaps that period. If none does, the unfiltered candidates are kept so the model can say "nothing this weekend" and offer the nearest dates. On the 6 dated test questions, the share of retrieved events inside the requested period went from 60 % to 100 %. The same mechanism applies two more explicit constraints: "gratuit" keeps free events (price text starting with "Gratuit", except "sous condition" entries that state a price), and "enfants", "famille", "ados", "jeunes" keep events with the matching audience keyword or "Tout public". Filters are applied one by one; one that would leave nothing is skipped. Limit: the filter uses an event's first and last session dates, so an event held every Thursday from October to December overlaps a weekend window although it never happens on a weekend.
 2. **Generation.** The kept chunks are pasted into a French system prompt together with today's date, and `ministral-14b-latest` writes the answer. The prompt tells the model to use only the provided events, to give title, dates, venue and price, and, when nothing matches exactly, to say so and then offer the closest events from the context with the difference stated. The prompt is in French on purpose: Mistral models are trained heavily on French, the data and the expected answer are French, and mixing languages costs a small model more than it gains.
@@ -169,7 +169,7 @@ Try "Bonjour" or "Quel temps fera-t-il demain ?" to see the intent classifier an
 
 The Streamlit app has two pages:
 
-- **Chat** (`ui/Chat.py`): ask a question, read the answer with its sources as links, rate it with a thumbs up or down, and after a thumbs down explain what was wrong. The page only talks to the API over HTTP (`/ask`, `/feedback`): it holds no model and no index, so any other front-end could replace it.
+- **Chat** (`ui/Chat.py`): ask a question, read the answer with its sources as links, shown as one block per event (bold title, then dates, place and price lines), rate it with a thumbs up or down, and after a thumbs down explain what was wrong. The page only talks to the API over HTTP (`/ask`, `/feedback`): it holds no model and no index, so any other front-end could replace it.
 - **Tableau de bord** (`ui/pages/1_Tableau_de_bord.py`): headline numbers (questions, satisfaction rate, feedback rate, median RAG latency, share answered without RAG), questions per day, split by intent, latency over time, the answers users rated badly with their comments, the full interaction table, and the latest offline evaluation scores. It reads the interactions table directly: it needs data, not the model.
 
 **Intent classifier** (`rag/intent.py`). Before any retrieval, each message is classified as `events` (goes to the RAG), `chat` (greeting, thanks, "who are you?") or `off_topic` (weather, maths, code, news). The last two get a fixed answer, with no retrieval and no 14B call. Two stages, cheapest first: regular expressions for obvious small talk, then `ministral-3b-latest` answering with one label. When the model's answer cannot be parsed or the call fails, the default is `events`: running the RAG for nothing is cheaper than refusing a real question.
@@ -341,7 +341,7 @@ Two GitHub Actions workflows in `.github/workflows/`:
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 133 unit tests with coverage. Offline, no secret, about a minute. A failing test, or coverage under 85 %, blocks the pull request. The HTML coverage report is uploaded as an artifact. |
+| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 137 unit tests with coverage. Offline, no secret, about a minute. A failing test, or coverage under 85 %, blocks the pull request. The HTML coverage report is uploaded as an artifact. |
 | `evaluate.yml` | manual (Actions tab, "Run workflow") | Runs `evaluate_rag.py` against the committed index snapshot, then the regression gate, and uploads `evaluation/results/` as a downloadable artifact. Needs the `MISTRAL_API_KEY` repository secret. About 25 minutes; a `skip_ragas` checkbox gives the exact retrieval metrics in 2 minutes. |
 
 The evaluation is not run on every push on purpose: it costs API calls and half an hour. It is run after a prompt, model or retrieval change.
@@ -355,7 +355,7 @@ uv run pytest --cov --cov-report=term --cov-report=html   # with coverage; open 
 
 ### Coverage
 
-Coverage is the share of our code lines executed by the tests. 133 tests, 95 % overall:
+Coverage is the share of our code lines executed by the tests. 137 tests, 95 % overall:
 
 | File | Coverage | Not covered |
 |------|----------|-------------|
@@ -417,6 +417,7 @@ FAISS is replaced by a fake store that returns scripted chunks, and the LLM by L
 | Test | What it checks | Why it matters |
 |------|----------------|----------------|
 | `test_dedupe_keeps_first_chunk_per_event_and_caps_count` | Only the best-ranked chunk of each event survives, and the list stops at `max_events`. | A long event must not fill every slot of the answer. |
+| `test_sort_by_date_orders_events_chronologically` | The chosen events are sorted by next session and start time; an ongoing event counts as today; an event without a date goes last. | Answers read in date order, not in similarity order. |
 | `test_describe_today_computes_the_coming_weekend_in_french` | The date sentence gives today and the coming Saturday and Sunday in French, for a weekday, a Saturday and a Sunday. | Python does the calendar arithmetic, not the LLM, which gets it wrong. |
 | `test_format_context_numbers_the_events` | Retrieved chunks are rendered as numbered `[Événement i]` blocks. | The prompt must be readable and stable for the LLM. |
 | `test_ask_returns_answer_and_sources` | `ask()` returns the LLM answer, asks FAISS for `top_k_chunks`, and lists deduplicated sources in rank order with their URL. | This is the contract the API relies on. |
@@ -431,7 +432,7 @@ FAISS is replaced by a fake store that returns scripted chunks, and the LLM by L
 | `test_requested_filters_detects_period_price_and_audience` | A question with a weekend, "gratuit" and "enfants" yields the three filters; an unconstrained one none. | Constraint detection. |
 | `test_retrieve_applies_price_and_audience_filters` | "Une activité gratuite pour les enfants ?" drops the paid event and the adults-only one. | The filters in retrieval. |
 | `test_a_filter_that_would_leave_nothing_is_skipped` | No free event at all: the price filter is skipped, the audience filter kept. | The model can say "nothing free" and still offer something. |
-| `test_strip_markdown_keeps_text_and_bullets` / `test_generated_answer_is_stripped_of_markdown` | Bold markers and headings removed, bullets kept, applied to every generated answer. | Plain text in Swagger and in the terminal. |
+| `test_strip_markdown_brings_back_the_plain_format` / `test_strip_markdown_keeps_dashes_inside_text` / `test_generated_answer_is_stripped_of_markdown` | Bold markers, headings and list markers removed at line start; dashes inside text kept; applied to every generated answer. | One predictable plain format for every client. |
 | `test_traced_ask_records_spans_and_returns_the_trace_id` | With a fake Langfuse client, a question opens the `ask` and `retrieve` spans with the right content and returns the trace id. | The trace id links a user's vote to the trace. |
 | `test_push_feedback_score_sends_a_boolean_score` | A thumbs down becomes a `user_feedback` score of 0 with its comment on the trace; no trace id, nothing sent. | Feedback visible in Langfuse. |
 | `test_push_feedback_score_is_silent_without_keys` / `test_flush_traces_only_with_keys` | Without keys nothing is sent and nothing breaks. | Observability stays optional. |
@@ -511,6 +512,8 @@ Streamlit's `AppTest` runs each page headlessly; the API is faked by patching `r
 | `test_chat_reports_an_unreachable_api` | With the API down the page shows a clear message instead of crashing. | Demo-day resilience. |
 | `test_example_buttons_ask_the_question_and_history_shows_no_stray_values` | A suggestion button sends its question; after a second question, the history is re-rendered once, with no stray `None`. | Regression test for a bug found by hand: Streamlit "magic" displayed the value of a one-line `if/else`. |
 | `test_examples_stay_clickable_after_a_first_question` | After a first question, the main-page suggestions are hidden; a sidebar example starts a fresh conversation with that question and its answer. | Regression test for a lost click found by hand. |
+| `test_answer_blocks_render_with_bold_titles_and_one_line_per_detail` | The plain answer blocks become markdown: bold event title, one line per detail, no list bullets. | Regression test: the model's dashes were shown as bullets. |
+| `test_format_answer_bolds_the_title_not_the_intro_line` | When an intro line sits above the first event, the event title is bolded, not the intro. | No-match answers start with such a line. |
 | `test_dashboard_with_no_data_says_so` | Empty database: an explanatory message, no error. | First run. |
 | `test_dashboard_shows_kpis_and_negative_feedback` | Question count, satisfaction, median latency and the badly rated answer are shown. | The dashboard's numbers come from the data. |
 

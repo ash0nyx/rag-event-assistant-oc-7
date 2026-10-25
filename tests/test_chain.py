@@ -406,11 +406,19 @@ def test_retrieve_falls_back_when_nothing_is_in_the_period():
     assert [d.metadata["uid"] for d in docs] == [1, 2]
 
 
-def test_strip_markdown_keeps_text_and_bullets():
+def test_strip_markdown_brings_back_the_plain_format():
     from rag.chain import strip_markdown
 
-    raw = "## Concerts\n- **Requiem de Verdi** (7 novembre)\n- __Nuits transfigurées__"
-    assert strip_markdown(raw) == "Concerts\n- Requiem de Verdi (7 novembre)\n- Nuits transfigurées"
+    raw = "## Concerts\n- **Requiem de Verdi** (7 novembre)\n- __Nuits transfigurées__\n1. Un autre\n• Encore un"
+    assert strip_markdown(raw) == "Concerts\nRequiem de Verdi (7 novembre)\nNuits transfigurées\nUn autre\nEncore un"
+
+
+def test_strip_markdown_keeps_dashes_inside_text():
+    from rag.chain import strip_markdown
+
+    assert strip_markdown("Tarif : Gratuit — Entrée libre\nLieu : Saint-Ouen-sur-Seine") == (
+        "Tarif : Gratuit — Entrée libre\nLieu : Saint-Ouen-sur-Seine"
+    )
 
 
 def test_generated_answer_is_stripped_of_markdown():
@@ -472,3 +480,24 @@ def test_a_filter_that_would_leave_nothing_is_skipped():
     assistant = RagAssistant(store, FakeListChatModel(responses=["ok"]))
     docs = assistant.retrieve("Une activité gratuite pour les enfants ?", today=THU)
     assert [d.metadata["uid"] for d in docs] == [2]
+
+
+def test_sort_by_date_orders_events_chronologically():
+    from datetime import date
+
+    from langchain_core.documents import Document
+
+    from rag.chain import sort_by_date
+
+    def doc(uid, **dates):
+        return Document(page_content="x", metadata={"uid": uid, **dates})
+
+    today = date(2026, 10, 25)
+    docs = [
+        doc(1, next_begin="2026-10-31T15:00", first_begin="2026-10-31T15:00"),
+        doc(5, next_begin="2026-10-31T10:30:00+01:00"),  # same day, earlier: before 1
+        doc(2),  # no date: last
+        doc(3, next_begin="2026-10-10T10:00", first_begin="2026-09-01T10:00"),  # ongoing: counts as today
+        doc(4, first_begin="2026-10-28T13:30"),  # no next_begin: first_begin used
+    ]
+    assert [d.metadata["uid"] for d in sort_by_date(docs, today)] == [3, 4, 5, 1, 2]
