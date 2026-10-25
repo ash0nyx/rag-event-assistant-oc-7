@@ -124,8 +124,8 @@ def test_example_buttons_ask_the_question_and_history_shows_no_stray_values(fake
     """Click a suggestion, then rerun with a second question: earlier messages
     are re-rendered from history and must not print stray values like None."""
     at = AppTest.from_file(CHAT, default_timeout=30).run()
-    at.button(key="main_example_3").click().run()  # "Un concert de musique classique dans une église ?"
-    assert fake_api[0] == ("ask", {"question": "Un concert de musique classique dans une église ?"})
+    at.button(key="main_example_3").click().run()  # "Une balade urbaine sur l'histoire de Paris ?"
+    assert fake_api[0] == ("ask", {"question": "Une balade urbaine sur l'histoire de Paris ?"})
 
     at.chat_input[0].set_value("Bonjour").run()
 
