@@ -39,6 +39,7 @@ EMBEDDING_MODEL = "mistral-embed"
 CHAT_MODEL = "ministral-14b-latest"
 TOP_K_CHUNKS = 20  # chunks fetched from FAISS; some are dropped as past events
 MAX_EVENTS = 5  # distinct events kept after deduplication
+PERIOD_FETCH_FACTOR = 4  # with a requested period, fetch 4x more candidates before filtering
 RATE_LIMIT_RETRIES = 4  # Mistral free tier answers 429 when called too fast
 RATE_LIMIT_WAIT = 2.0  # seconds; doubled after each failed attempt
 
@@ -105,11 +106,7 @@ def describe_today(today: date, question: str = "") -> str:
     sentence = f"Nous sommes le {format_date_fr(today)}."
     if question and not needs_calendar(question):
         return sentence + " La question ne précise pas de période : tous les événements du contexte conviennent."
-    if today.weekday() == 6:  # Sunday: "ce week-end" is the one we are in
-        saturday, sunday = today - timedelta(days=1), today
-    else:
-        saturday = today + timedelta(days=(5 - today.weekday()) % 7)
-        sunday = saturday + timedelta(days=1)
+    saturday, sunday = weekend_dates(today)
     season_name, season_start, season_end = current_season(today)
     return (
         f"{sentence} "
@@ -118,18 +115,30 @@ def describe_today(today: date, question: str = "") -> str:
     )
 
 
-def current_season(today: date) -> tuple[str, date, date]:
-    """Name and bounds of the season containing `today` (approximate
-    astronomical dates). "Cet automne" is then a date range, not a guess."""
-    y = today.year
-    seasons = [
+def weekend_dates(today: date) -> tuple[date, date]:
+    """Saturday and Sunday of "ce week-end": the current one on a Sunday,
+    the coming one otherwise (on Saturday, today and tomorrow)."""
+    if today.weekday() == 6:
+        return today - timedelta(days=1), today
+    saturday = today + timedelta(days=(5 - today.weekday()) % 7)
+    return saturday, saturday + timedelta(days=1)
+
+
+def _seasons(y: int) -> list[tuple[str, date, date]]:
+    """Approximate astronomical seasons touching year y."""
+    return [
         ("hiver", date(y - 1, 12, 21), date(y, 3, 19)),
         ("printemps", date(y, 3, 20), date(y, 6, 20)),
         ("été", date(y, 6, 21), date(y, 9, 21)),
         ("automne", date(y, 9, 22), date(y, 12, 20)),
         ("hiver", date(y, 12, 21), date(y + 1, 3, 19)),
     ]
-    for name, start, end in seasons:
+
+
+def current_season(today: date) -> tuple[str, date, date]:
+    """Name and bounds of the season containing `today` (approximate
+    astronomical dates). "Cet automne" is then a date range, not a guess."""
+    for name, start, end in _seasons(today.year):
         if start <= today <= end:
             return name, start, end
     raise ValueError("unreachable")  # every date falls in one of the ranges above
@@ -178,6 +187,76 @@ def format_context(documents: list[Document]) -> str:
         lines = [f"[Événement {i}]"] + ([period] if period else []) + [doc.page_content]
         blocks.append("\n".join(lines))
     return "\n\n".join(blocks)
+
+
+_MONTH_RE = re.compile(r"\b(" + "|".join(_MONTHS) + r")\b", re.IGNORECASE)
+_SEASON_RE = re.compile(r"\bcet(?:te)? (hiver|printemps|été|automne)\b|\bce (printemps)\b", re.IGNORECASE)
+
+
+def _month_bounds(year: int, month: int) -> tuple[date, date]:
+    first = date(year, month, 1)
+    next_first = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+    return first, next_first - timedelta(days=1)
+
+
+def requested_period(question: str, today: date) -> tuple[date, date] | None:
+    """The date window a question asks for, or None if it asks for none.
+    Computed in Python so retrieval can keep only events in that window:
+    vector similarity reads "novembre" as a word, not as a constraint.
+    Handles: aujourd'hui / ce soir, demain, ce week-end, cette semaine,
+    ce mois-ci, le mois prochain, a month name, cet été / automne / hiver,
+    ce printemps. Past months and seasons mean the next occurrence."""
+    q = question.lower()
+    if re.search(r"\b(aujourd'hui|ce soir|cet après-midi|ce midi)\b", q):
+        return today, today
+    if re.search(r"\bdemain\b", q):
+        return today + timedelta(days=1), today + timedelta(days=1)
+    if re.search(r"\bweek-?end\b", q):
+        return weekend_dates(today)
+    if re.search(r"\bcette semaine\b", q):
+        return today, today + timedelta(days=6 - today.weekday())
+    if re.search(r"\bce mois(-ci)?\b", q):
+        return today, _month_bounds(today.year, today.month)[1]
+    if re.search(r"\bmois prochain\b", q):
+        y, m = (today.year + 1, 1) if today.month == 12 else (today.year, today.month + 1)
+        return _month_bounds(y, m)
+    if match := _MONTH_RE.search(q):
+        month = _MONTHS.index(match.group(1).lower()) + 1
+        year = today.year if month >= today.month else today.year + 1
+        start, end = _month_bounds(year, month)
+        return max(start, today), end
+    if match := _SEASON_RE.search(q):
+        name = (match.group(1) or match.group(2)).lower()
+        for year in (today.year, today.year + 1):
+            for season, start, end in _seasons(year):
+                if season == name and end >= today:
+                    return max(start, today), end
+    return None
+
+
+def in_period(doc: Document, start: date, end: date) -> bool:
+    """True if the event has a session window overlapping [start, end].
+    Uses the first and last session dates only: an event running every
+    Thursday from October to December overlaps a weekend window although it
+    never happens on a weekend (the list of sessions is not indexed).
+    Chunks without usable dates are kept."""
+    try:
+        first = date.fromisoformat(doc.metadata["first_begin"][:10])
+        last = date.fromisoformat(doc.metadata["last_end"][:10])
+    except (KeyError, TypeError, ValueError):
+        return True
+    return first <= end and last >= start
+
+
+_MD_EMPHASIS = re.compile(r"\*\*|__")  # **bold** / __bold__
+_MD_HEADING = re.compile(r"^#{1,6}\s*", re.MULTILINE)  # "## Titre"
+
+
+def strip_markdown(text: str) -> str:
+    """Remove the markdown the model sometimes adds despite the "plain text"
+    rule: bold markers and headings. Bullets ("- ") are kept, they are plain
+    text. Done in Python because a prompt rule is a request, not a guarantee."""
+    return _MD_HEADING.sub("", _MD_EMPHASIS.sub("", text)).strip()
 
 
 def drop_past_events(documents: list[Document], today: date) -> list[Document]:
@@ -282,9 +361,21 @@ class RagAssistant:
             self._callbacks = [CallbackHandler()]
 
     def retrieve(self, question: str, today: date | None = None) -> list[Document]:
-        """Phase 1: vector search, drop finished events, one chunk per event."""
-        hits = self.vector_store.similarity_search(question, k=self.top_k_chunks)
-        hits = drop_past_events(hits, today or date.today())
+        """Phase 1: vector search, drop finished events, keep the requested
+        period if any, one chunk per event.
+
+        With a period ("en novembre", "ce week-end"), 4x more candidates are
+        fetched (still instant with an exact index) because many will be
+        outside the window. If none is inside, the unfiltered candidates are
+        kept, so the model can say "nothing this weekend" and offer the
+        nearest dates instead of answering from an empty context."""
+        today = today or date.today()
+        period = requested_period(question, today)
+        k = self.top_k_chunks * PERIOD_FETCH_FACTOR if period else self.top_k_chunks
+        hits = drop_past_events(self.vector_store.similarity_search(question, k=k), today)
+        if period:
+            in_window = [d for d in hits if in_period(d, *period)]
+            hits = in_window or hits[: self.top_k_chunks]
         return dedupe_by_event(hits, self.max_events)
 
     def generate(self, question: str, documents: list[Document], today: date | None = None) -> str:
@@ -303,7 +394,7 @@ class RagAssistant:
         config = {"callbacks": self._callbacks, "run_name": "generate"} if self._callbacks else None
         for attempt in range(RATE_LIMIT_RETRIES + 1):
             try:
-                return self.chain.invoke(inputs, config=config)
+                return strip_markdown(self.chain.invoke(inputs, config=config))
             except httpx.HTTPStatusError as err:
                 if err.response.status_code != 429 or attempt == RATE_LIMIT_RETRIES:
                     raise
