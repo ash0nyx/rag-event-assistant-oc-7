@@ -23,7 +23,7 @@ EXAMPLES = [
     "Quels concerts de jazz ce week-end ?",
     "Une activité gratuite pour les enfants ?",
     "Une exposition de photographie en novembre ?",
-    "Quel temps fera-t-il demain ?",
+    "Un concert de musique classique dans une église ?",
 ]
 
 st.set_page_config(page_title="Puls-Events, assistant", page_icon="🏛️", layout="centered")
