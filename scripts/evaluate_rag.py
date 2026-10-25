@@ -48,12 +48,16 @@ JUDGE_MODEL = "ministral-14b-latest"  # same free-tier constraint as the chain
 PAUSE_BETWEEN_QUESTIONS = 2.0  # seconds; keeps the chain under 30 req/min
 
 
-def retrieval_recall(retrieved_uids: list[int], expected_uids: list[int]) -> float | None:
-    """Share of expected events that were retrieved. None when nothing is
-    expected (the 'no match' questions), so they do not skew the average."""
+def retrieval_recall(retrieved_uids: list[int], expected_uids: list[int], k: int = 5) -> float | None:
+    """Normalized recall@k: share of the correct events the assistant could
+    show that it does show. The assistant shows at most k events, so when a
+    question has more than k correct answers (19 events for Halloween), the
+    denominator is k, not the full list: showing 5 right events out of 19
+    is a perfect answer for a recommender. None when nothing is expected
+    (the 'no match' questions), so they do not skew the average."""
     if not expected_uids:
         return None
-    return len(set(retrieved_uids) & set(expected_uids)) / len(expected_uids)
+    return len(set(retrieved_uids) & set(expected_uids)) / min(k, len(set(expected_uids)))
 
 
 def retrieval_in_period(documents: list, period: tuple | None) -> float | None:
@@ -204,7 +208,15 @@ def main() -> None:
         previous = json.loads(args.from_results.read_text(encoding="utf-8"))
         wanted = {item["id"] for item in items}
         rows = [r for r in previous["rows"] if r["id"] in wanted]
-        print(f"Reusing {len(rows)} answers from {args.from_results}")
+        # The references may have been completed since that run: re-score the
+        # retrieval against the current test set (no API call needed, the
+        # retrieved uids are saved in each row).
+        by_id = {item["id"]: item for item in items}
+        for row in rows:
+            row["expected_uids"] = by_id[row["id"]]["expected_uids"]
+            row["retrieval_recall"] = retrieval_recall(row["retrieved_uids"], row["expected_uids"])
+            row["retrieval_precision"] = retrieval_precision(row["retrieved_uids"], row["expected_uids"])
+        print(f"Reusing {len(rows)} answers from {args.from_results}, retrieval re-scored against {args.test_set}")
     else:
         today = date.fromisoformat(test_set["today"])
         print(f"Running the chain on {len(items)} questions as of {today} ...")
@@ -222,7 +234,7 @@ def main() -> None:
             "index_built_on": test_set.get("index_built_on"),
         "index_dir": str(args.index_dir),
             "n_questions": len(rows),
-            "judge_model": None if args.skip_ragas else JUDGE_MODEL,
+            "judge_model": JUDGE_MODEL if (not args.skip_ragas or args.from_results) else None,
             "summary": summary,
             "rows": rows,
         }

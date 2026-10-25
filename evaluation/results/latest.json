@@ -1,13 +1,13 @@
 {
-  "evaluated_at": "2026-10-25T13:20:07.138187+00:00",
+  "evaluated_at": "2026-10-25T19:14:10.920666+00:00",
   "test_set": "evaluation/test_set.json",
   "index_built_on": "2026-09-25",
-  "index_dir": "evaluation/index_snapshot",
+  "index_dir": "data/index",
   "n_questions": 14,
   "judge_model": "ministral-14b-latest",
   "summary": {
-    "retrieval_recall": 0.956,
-    "retrieval_precision": 0.708,
+    "retrieval_recall": 0.923,
+    "retrieval_precision": 0.815,
     "retrieval_in_period": 1.0,
     "faithfulness": 0.949,
     "answer_relevancy": 0.764
@@ -33,11 +33,12 @@
         49473406
       ],
       "expected_uids": [
-        16943861
+        16943861,
+        49473406
       ],
       "ground_truth": "Ce week-end (26 et 27 septembre 2026), un concert de jazz gratuit a lieu le samedi 26 septembre à 18h au Conservatoire Municipal Gabriel Fauré (Paris 5e), entrée libre selon les places disponibles.",
       "retrieval_recall": 1.0,
-      "retrieval_precision": 0.2,
+      "retrieval_precision": 0.4,
       "retrieval_in_period": 1.0,
       "faithfulness": 0.929,
       "answer_relevancy": 0.796
@@ -63,11 +64,14 @@
       ],
       "expected_uids": [
         57362659,
-        71587012
+        71587012,
+        97407594,
+        47111615,
+        69600430
       ],
       "ground_truth": "En octobre, l'exposition 'Photographies japonaises de la Bibliothèque nationale de France' est présentée à la Bibliothèque François-Mitterrand (Paris 13e) du 29 septembre 2026 au 31 janvier 2027, tarif de 0 à 15 euros. L'exposition gratuite 'L'être et le néon' au Carré de Baudouin (Paris 20e) se termine le 3 octobre.",
-      "retrieval_recall": 1.0,
-      "retrieval_precision": 0.4,
+      "retrieval_recall": 0.6,
+      "retrieval_precision": 0.6,
       "retrieval_in_period": 1.0,
       "faithfulness": 1.0,
       "answer_relevancy": 0.752
@@ -131,11 +135,23 @@
         52573658,
         2779856,
         26310198,
-        41040645
+        41040645,
+        20909789,
+        33813105,
+        84553966,
+        20721294,
+        4591750,
+        79622281,
+        31625706,
+        69162555,
+        11869989,
+        70113636,
+        54009469,
+        44115235
       ],
       "ground_truth": "Pour les adultes : le cabaret burlesque Tease Tease Tease propose une édition spéciale Halloween au Cirque Electrique (Paris 20e) le jeudi 22 octobre à 21h (payant), et un jeu de loup-garou grandeur nature se joue au Secret de l'Île (Paris 4e) du 26 octobre au 1er novembre (35 euros). Le samedi 31 octobre, la chanteuse Melissa Lesnie donne un concert 'I Want to be Evil' au 38Riv Jazz Club (Paris 4e) à 15h et 17h (16 à 19 euros), et la Médiathèque Violette Leduc (Paris 11e) organise une fête Halloween à 18h pour les jeunes et adultes, gratuite sur réservation. Pour les enfants, le 31 octobre : la Grande journée Halloween à la Bibliothèque Maurice Genevoix (Paris 18e) à partir de 10h30, gratuite sur réservation ; Melville fête Halloween à la Médiathèque Jean-Pierre Melville (Paris 13e) à 10h ; et un ciné-spectacle spécial Halloween à la Fondation Jérôme Seydoux-Pathé (Paris 13e) à 14h30 (8 euros).",
-      "retrieval_recall": 0.42857142857142855,
-      "retrieval_precision": 0.6,
+      "retrieval_recall": 1.0,
+      "retrieval_precision": 1.0,
       "retrieval_in_period": null,
       "faithfulness": 0.95,
       "answer_relevancy": 0.736
@@ -164,7 +180,9 @@
         94179189,
         53831185,
         40147156,
-        91420444
+        91420444,
+        9885058,
+        51531937
       ],
       "ground_truth": "Plusieurs balades urbaines payantes sont proposées : 'Le Paris gallo-romain : au temps de Lutèce' le 24 octobre (18 euros), 'Le Paris de la Révolution' le dimanche 4 octobre à 15h (21 euros), 'Surprenant 7e arrondissement' le samedi 3 octobre à 11h (18 euros), et 'Les légendes du Paris maudit', visite nocturne jusqu'au 10 octobre (21 euros).",
       "retrieval_recall": 1.0,
@@ -194,11 +212,14 @@
       ],
       "expected_uids": [
         58503910,
-        80640018
+        80640018,
+        97967064,
+        94521220,
+        17785699
       ],
       "ground_truth": "En novembre, le Centre Culturel Coréen (Paris 8e) présente gratuitement le spectacle de danse 'Trad Now' du 3 au 5 novembre, et Le Regard du Cygne (Paris 20e) propose une répétition publique et projection avec Aurélie Berland le lundi 30 novembre à 16h, gratuit.",
-      "retrieval_recall": 1.0,
-      "retrieval_precision": 0.4,
+      "retrieval_recall": 0.8,
+      "retrieval_precision": 0.8,
       "retrieval_in_period": 1.0,
       "faithfulness": 1.0,
       "answer_relevancy": 0.784
@@ -227,7 +248,10 @@
         49298661,
         85913269,
         35410206,
-        34813125
+        34813125,
+        60803383,
+        919079,
+        63560510
       ],
       "ground_truth": "Plusieurs conférences scientifiques gratuites sont proposées : les Échappées inattendues du CNRS au Musée des arts et métiers (Paris 3e) du 2 au 4 octobre et à la Médiathèque Marguerite Duras (Paris 20e) le samedi 26 septembre à 16h ; une conférence sur les plantes et leurs propriétés imperméables à la Bibliothèque Andrée Chedid (Paris 15e) le samedi 3 octobre à 15h30 ; une table ronde 'Sciences et Design : à la rencontre du corail' à la Médiathèque Virginia Woolf (Paris 13e) le samedi 10 octobre à 15h ; et 'L'art et la science du goût' par Christophe Lavelle à la Bibliothèque Robert Sabatier (Paris 18e) le mardi 17 novembre à 19h.",
       "retrieval_recall": 1.0,
@@ -260,7 +284,10 @@
         32557807,
         14798711,
         86513199,
-        41021977
+        41021977,
+        73079285,
+        94559782,
+        66556419
       ],
       "ground_truth": "En décembre : le Marché de Noël Notre Dame au square René Viviani (Paris 5e) du 26 novembre au 27 décembre, gratuit ; le marché de créateurs Klin d'œil spécial Noël au Carreau du Temple (Paris 3e) les 12 et 13 décembre, entrée libre ; un concert de Noël au Théâtre du Châtelet le dimanche 6 décembre à 11h (10 à 18 euros) ; un grand concert de chants traditionnels de Noël à l'église de la Madeleine les 21 et 23 décembre (20 à 70 euros) ; et un atelier bricolages de Noël à la Médiathèque Marguerite Yourcenar (Paris 15e) le samedi 19 décembre à 10h30, gratuit.",
       "retrieval_recall": 1.0,
@@ -293,7 +320,8 @@
         6000605,
         11452991,
         17076498,
-        8999902
+        8999902,
+        75319758
       ],
       "ground_truth": "Plusieurs concerts classiques payants ont lieu dans des églises : Les 4 saisons de Vivaldi, Ave Maria et célèbres concertos à l'église de la Madeleine (Paris 8e) du 30 septembre au 15 décembre (20 à 60 euros) ; le Requiem de Mozart et le Boléro de Ravel à l'église Saint-Germain-des-Prés le vendredi 23 octobre à 20h45 (20 à 60 euros) ; de la musique baroque allemande à l'église Notre-Dame de la Salette (Paris 15e) le dimanche 18 octobre à 15h30 ; et le Requiem de Fauré avec la 3e symphonie de Beethoven à la Madeleine le lundi 28 décembre à 20h45.",
       "retrieval_recall": 1.0,
@@ -325,11 +353,13 @@
         91265403,
         17266899,
         52456331,
-        41719822
+        41719822,
+        11462579,
+        41612868
       ],
       "ground_truth": "Cet automne, le festival de cinéma européen SABORD a lieu les 28 et 30 septembre au Centre Paris Anim' Jacques Bravo (Paris 9e), gratuit. Pour les enfants, 'Mon Premier Festival' se tient du 17 au 24 octobre à la Bibliothèque François Villon (Paris 10e) et les 21 et 23 octobre à la Bibliothèque Saint-Eloi (Paris 12e), et 'Les racontines font leur cinéma' les 23 et 27 octobre au Cinéma des Cinéastes (Paris 17e), gratuit.",
       "retrieval_recall": 1.0,
-      "retrieval_precision": 0.8,
+      "retrieval_precision": 1.0,
       "retrieval_in_period": 1.0,
       "faithfulness": 1.0,
       "answer_relevancy": 0.733
@@ -358,7 +388,8 @@
         90563484,
         36361620,
         76155869,
-        42144833
+        42144833,
+        4511633
       ],
       "ground_truth": "Le programme gratuit 'Paris sport dimanches' propose des séances de remise en forme tous les dimanches à partir du 27 septembre au Parc Georges Brassens et au Parc André Citroën (Paris 15e), au Parc Montsouris (Paris 14e), ainsi que du football et du renforcement musculaire au TEP Angélique Duchemin (Paris 20e). L'association Meilleur qu'Hier propose aussi du multisports gratuit le dimanche au Centre Sportif Angélique Duchemin jusqu'au 27 décembre.",
       "retrieval_recall": 1.0,
@@ -389,10 +420,12 @@
       "expected_uids": [
         69662581,
         2257832,
-        44084126
+        44084126,
+        95401450,
+        58045077
       ],
       "ground_truth": "Le Théâtre de la Concorde (Paris 8e) propose '24 Place Beaumarchais' du 30 octobre au 7 novembre (8 à 15 euros) et 'Que jeunesse se raconte' les 8 et 9 décembre (8 à 20 euros), tous deux destinés aux jeunes et adultes. Un stage de théâtre pour jeunes et adultes a aussi lieu du 26 au 31 octobre aux Salles Saint-Roch (Paris 1er).",
-      "retrieval_recall": 1.0,
+      "retrieval_recall": 0.6,
       "retrieval_precision": 0.6,
       "retrieval_in_period": null,
       "faithfulness": 0.923,

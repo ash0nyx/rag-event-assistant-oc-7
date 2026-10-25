@@ -37,6 +37,14 @@ def test_retrieval_recall():
     assert retrieval_recall([1, 2], []) is None  # no expectation: not scored
 
 
+def test_retrieval_recall_is_normalized_to_what_can_be_shown():
+    """19 correct events, 5 shown, all 5 correct: a perfect answer (1.0), not 5/19."""
+    expected = list(range(1, 20))
+    assert retrieval_recall([1, 2, 3, 4, 5], expected) == 1.0
+    assert retrieval_recall([1, 2, 3, 98, 99], expected) == 0.6
+    assert retrieval_recall([1, 2, 3], expected, k=3) == 1.0
+
+
 def test_retrieval_precision():
     assert retrieval_precision([1, 2], [1, 2, 3]) == 1.0  # everything retrieved was expected
     assert retrieval_precision([1, 9, 8, 7], [1, 2]) == 0.25
