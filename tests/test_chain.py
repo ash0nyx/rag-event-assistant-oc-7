@@ -406,11 +406,19 @@ def test_retrieve_falls_back_when_nothing_is_in_the_period():
     assert [d.metadata["uid"] for d in docs] == [1, 2]
 
 
-def test_strip_markdown_keeps_text_and_bullets():
+def test_strip_markdown_brings_back_the_plain_format():
     from rag.chain import strip_markdown
 
-    raw = "## Concerts\n- **Requiem de Verdi** (7 novembre)\n- __Nuits transfigurées__"
-    assert strip_markdown(raw) == "Concerts\n- Requiem de Verdi (7 novembre)\n- Nuits transfigurées"
+    raw = "## Concerts\n- **Requiem de Verdi** (7 novembre)\n- __Nuits transfigurées__\n1. Un autre\n• Encore un"
+    assert strip_markdown(raw) == "Concerts\nRequiem de Verdi (7 novembre)\nNuits transfigurées\nUn autre\nEncore un"
+
+
+def test_strip_markdown_keeps_dashes_inside_text():
+    from rag.chain import strip_markdown
+
+    assert strip_markdown("Tarif : Gratuit — Entrée libre\nLieu : Saint-Ouen-sur-Seine") == (
+        "Tarif : Gratuit — Entrée libre\nLieu : Saint-Ouen-sur-Seine"
+    )
 
 
 def test_generated_answer_is_stripped_of_markdown():

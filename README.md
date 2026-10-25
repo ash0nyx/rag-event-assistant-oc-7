@@ -169,7 +169,7 @@ Try "Bonjour" or "Quel temps fera-t-il demain ?" to see the intent classifier an
 
 The Streamlit app has two pages:
 
-- **Chat** (`ui/Chat.py`): ask a question, read the answer with its sources as links, rate it with a thumbs up or down, and after a thumbs down explain what was wrong. The page only talks to the API over HTTP (`/ask`, `/feedback`): it holds no model and no index, so any other front-end could replace it.
+- **Chat** (`ui/Chat.py`): ask a question, read the answer with its sources as links, shown as one block per event (bold title, then dates, place and price lines), rate it with a thumbs up or down, and after a thumbs down explain what was wrong. The page only talks to the API over HTTP (`/ask`, `/feedback`): it holds no model and no index, so any other front-end could replace it.
 - **Tableau de bord** (`ui/pages/1_Tableau_de_bord.py`): headline numbers (questions, satisfaction rate, feedback rate, median RAG latency, share answered without RAG), questions per day, split by intent, latency over time, the answers users rated badly with their comments, the full interaction table, and the latest offline evaluation scores. It reads the interactions table directly: it needs data, not the model.
 
 **Intent classifier** (`rag/intent.py`). Before any retrieval, each message is classified as `events` (goes to the RAG), `chat` (greeting, thanks, "who are you?") or `off_topic` (weather, maths, code, news). The last two get a fixed answer, with no retrieval and no 14B call. Two stages, cheapest first: regular expressions for obvious small talk, then `ministral-3b-latest` answering with one label. When the model's answer cannot be parsed or the call fails, the default is `events`: running the RAG for nothing is cheaper than refusing a real question.
@@ -341,7 +341,7 @@ Two GitHub Actions workflows in `.github/workflows/`:
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 133 unit tests with coverage. Offline, no secret, about a minute. A failing test, or coverage under 85 %, blocks the pull request. The HTML coverage report is uploaded as an artifact. |
+| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 136 unit tests with coverage. Offline, no secret, about a minute. A failing test, or coverage under 85 %, blocks the pull request. The HTML coverage report is uploaded as an artifact. |
 | `evaluate.yml` | manual (Actions tab, "Run workflow") | Runs `evaluate_rag.py` against the committed index snapshot, then the regression gate, and uploads `evaluation/results/` as a downloadable artifact. Needs the `MISTRAL_API_KEY` repository secret. About 25 minutes; a `skip_ragas` checkbox gives the exact retrieval metrics in 2 minutes. |
 
 The evaluation is not run on every push on purpose: it costs API calls and half an hour. It is run after a prompt, model or retrieval change.
@@ -355,7 +355,7 @@ uv run pytest --cov --cov-report=term --cov-report=html   # with coverage; open 
 
 ### Coverage
 
-Coverage is the share of our code lines executed by the tests. 133 tests, 95 % overall:
+Coverage is the share of our code lines executed by the tests. 136 tests, 95 % overall:
 
 | File | Coverage | Not covered |
 |------|----------|-------------|
@@ -431,7 +431,7 @@ FAISS is replaced by a fake store that returns scripted chunks, and the LLM by L
 | `test_requested_filters_detects_period_price_and_audience` | A question with a weekend, "gratuit" and "enfants" yields the three filters; an unconstrained one none. | Constraint detection. |
 | `test_retrieve_applies_price_and_audience_filters` | "Une activité gratuite pour les enfants ?" drops the paid event and the adults-only one. | The filters in retrieval. |
 | `test_a_filter_that_would_leave_nothing_is_skipped` | No free event at all: the price filter is skipped, the audience filter kept. | The model can say "nothing free" and still offer something. |
-| `test_strip_markdown_keeps_text_and_bullets` / `test_generated_answer_is_stripped_of_markdown` | Bold markers and headings removed, bullets kept, applied to every generated answer. | Plain text in Swagger and in the terminal. |
+| `test_strip_markdown_brings_back_the_plain_format` / `test_strip_markdown_keeps_dashes_inside_text` / `test_generated_answer_is_stripped_of_markdown` | Bold markers, headings and list markers removed at line start; dashes inside text kept; applied to every generated answer. | One predictable plain format for every client. |
 | `test_traced_ask_records_spans_and_returns_the_trace_id` | With a fake Langfuse client, a question opens the `ask` and `retrieve` spans with the right content and returns the trace id. | The trace id links a user's vote to the trace. |
 | `test_push_feedback_score_sends_a_boolean_score` | A thumbs down becomes a `user_feedback` score of 0 with its comment on the trace; no trace id, nothing sent. | Feedback visible in Langfuse. |
 | `test_push_feedback_score_is_silent_without_keys` / `test_flush_traces_only_with_keys` | Without keys nothing is sent and nothing breaks. | Observability stays optional. |
@@ -511,6 +511,8 @@ Streamlit's `AppTest` runs each page headlessly; the API is faked by patching `r
 | `test_chat_reports_an_unreachable_api` | With the API down the page shows a clear message instead of crashing. | Demo-day resilience. |
 | `test_example_buttons_ask_the_question_and_history_shows_no_stray_values` | A suggestion button sends its question; after a second question, the history is re-rendered once, with no stray `None`. | Regression test for a bug found by hand: Streamlit "magic" displayed the value of a one-line `if/else`. |
 | `test_examples_stay_clickable_after_a_first_question` | After a first question, the main-page suggestions are hidden; a sidebar example starts a fresh conversation with that question and its answer. | Regression test for a lost click found by hand. |
+| `test_answer_blocks_render_with_bold_titles_and_one_line_per_detail` | The plain answer blocks become markdown: bold event title, one line per detail, no list bullets. | Regression test: the model's dashes were shown as bullets. |
+| `test_format_answer_bolds_the_title_not_the_intro_line` | When an intro line sits above the first event, the event title is bolded, not the intro. | No-match answers start with such a line. |
 | `test_dashboard_with_no_data_says_so` | Empty database: an explanatory message, no error. | First run. |
 | `test_dashboard_shows_kpis_and_negative_feedback` | Question count, satisfaction, median latency and the badly rated answer are shown. | The dashboard's numbers come from the data. |
 

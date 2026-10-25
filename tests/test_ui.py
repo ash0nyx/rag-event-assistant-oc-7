@@ -147,3 +147,33 @@ def test_examples_stay_clickable_after_a_first_question(fake_api):
     # A fresh conversation: only the example and its answer remain.
     assert len(at.chat_message) == 2
     assert at.chat_message[0].markdown[0].value == "Une exposition de photographie en novembre ?"
+
+
+def test_answer_blocks_render_with_bold_titles_and_one_line_per_detail(monkeypatch):
+    """The API returns plain blocks; the chat page bolds each event title and
+    keeps every detail on its own line (two spaces + newline in markdown)."""
+    answer = "Balade contée\nDates : Vendredi 30 octobre, 15h30\nLieu : Centre Paris Anim', 75017 Paris\nTarif : Gratuit\n\nAteliers créatifs nature\nDates : Samedi 31 octobre\nTarif : Gratuit"
+
+    def post(url, json=None, timeout=None):
+        return FakeResponse({"question": json["question"], "answer": answer, "intent": "events",
+                             "interaction_id": 3, "latency_ms": 1.0, "sources": []})
+
+    monkeypatch.setattr(requests, "post", post)
+    monkeypatch.setattr(requests, "get", lambda url, timeout=None: FakeResponse({"status": "ok"}))
+    at = AppTest.from_file(CHAT, default_timeout=30).run()
+    at.chat_input[0].set_value("Une activité gratuite pour les enfants ?").run()
+
+    rendered = next(m.value for m in at.markdown if "Balade contée" in m.value)
+    assert rendered.startswith("**Balade contée**  \nDates : Vendredi 30 octobre, 15h30  \nLieu :")
+    assert "\n\n**Ateliers créatifs nature**  \nDates :" in rendered
+    assert "- " not in rendered  # no list bullets
+
+
+def test_format_answer_bolds_the_title_not_the_intro_line():
+    """No-match answers can put an intro line right above the first event."""
+    from ui.Chat import format_answer
+
+    text = "Aucun opéra de Wagner.\n\nLes plus proches sont :\nLa Servante Maîtresse\nDates : Samedi 10 octobre\nTarif : 25 €"
+    assert format_answer(text) == (
+        "Aucun opéra de Wagner.\n\nLes plus proches sont :  \n**La Servante Maîtresse**  \nDates : Samedi 10 octobre  \nTarif : 25 €"
+    )

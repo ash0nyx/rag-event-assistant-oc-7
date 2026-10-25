@@ -56,8 +56,12 @@ Règles :
 - Réponds uniquement à partir des événements fournis dans le contexte ci-dessous.
 - Si des événements du contexte répondent à la question, recommande-les directement, sans phrase d'introduction sur ce qui manquerait. Une question large (« que faire », « quoi faire », « quels événements ») est satisfaite par tout événement du contexte qui correspond à son thème et à sa période.
 - Seulement si aucun événement du contexte ne répond à la question, dis-le clairement, puis propose les événements qui s'en rapprochent le plus (même thème, même période) en précisant en quoi ils diffèrent. Ne propose jamais un événement absent du contexte.
-- Pour chaque événement recommandé, donne son titre, ses dates, son lieu et son tarif s'ils sont connus.
-- Réponds en français, de façon concise et structurée (une ligne par information, un tiret par événement).
+- Réponds en français. Pour chaque événement recommandé, écris un bloc dans ce format exact, sans tiret ni puce, et sépare les blocs par une ligne vide :
+Titre de l'événement
+Dates : ...
+Lieu : ...
+Tarif : ...
+- Omets une ligne si l'information est inconnue. Une phrase d'introduction ou de conclusion est permise seulement si elle apporte une information utile (par exemple, ce qui ne correspond pas exactement).
 - Texte brut uniquement : pas de markdown, pas d'astérisques, pas de titres, pas de séparateurs.
 - N'invente jamais d'événement, de date ou de lieu.
 
@@ -301,13 +305,16 @@ def apply_filters(documents: list[Document], filters) -> list[Document]:
 
 _MD_EMPHASIS = re.compile(r"\*\*|__")  # **bold** / __bold__
 _MD_HEADING = re.compile(r"^#{1,6}\s*", re.MULTILINE)  # "## Titre"
+_LIST_MARKER = re.compile(r"^[ \t]*(?:[-*•]|\d+[.)])[ \t]+", re.MULTILINE)  # "- ", "• ", "1. "
 
 
 def strip_markdown(text: str) -> str:
-    """Remove the markdown the model sometimes adds despite the "plain text"
-    rule: bold markers and headings. Bullets ("- ") are kept, they are plain
-    text. Done in Python because a prompt rule is a request, not a guarantee."""
-    return _MD_HEADING.sub("", _MD_EMPHASIS.sub("", text)).strip()
+    """Bring the answer back to the agreed plain format: no bold, no
+    headings, no list markers (the model sometimes puts a dash on every
+    line). Done in Python because a prompt rule is a request, not a
+    guarantee. Presentation (bold titles) is the front-end's job."""
+    text = _MD_HEADING.sub("", _MD_EMPHASIS.sub("", text))
+    return _LIST_MARKER.sub("", text).strip()
 
 
 def drop_past_events(documents: list[Document], today: date) -> list[Document]:

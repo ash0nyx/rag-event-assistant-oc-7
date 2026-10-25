@@ -13,6 +13,7 @@ Docker: `docker compose up` starts it on http://localhost:8501.
 from __future__ import annotations
 
 import os
+import re
 
 import requests
 import streamlit as st
@@ -100,8 +101,32 @@ with st.sidebar:
 # --- Messages ----------------------------------------------------------------
 
 
+_DETAIL = re.compile(r"^(Dates|Date|Lieu|Tarif|Prix|Public)\s*:", re.IGNORECASE)
+
+
+def format_answer(text: str) -> str:
+    """Turn the API's plain-text answer into chat markdown. The API returns
+    blocks separated by blank lines: an event title, then "Dates :",
+    "Lieu :", "Tarif :" lines. Here the title becomes bold and each line
+    keeps its own line (markdown would otherwise merge single newlines).
+    Other blocks (an introduction sentence) are shown as they are."""
+    blocks = []
+    for block in text.strip().split("\n\n"):
+        lines = [line.strip() for line in block.strip().split("\n") if line.strip()]
+        if not lines:
+            continue
+        escaped = [line.replace("*", "\\*").replace("_", "\\_") for line in lines]
+        for i in range(len(lines) - 1):
+            # A title is the line just before a "Dates : / Lieu : ..." line
+            # (an intro line may share the block, so not always the first one).
+            if not _DETAIL.match(lines[i]) and _DETAIL.match(lines[i + 1]):
+                escaped[i] = f"**{escaped[i]}**"
+        blocks.append("  \n".join(escaped))  # two spaces + newline = markdown line break
+    return "\n\n".join(blocks)
+
+
 def render_answer(message: dict) -> None:
-    st.write(message["content"])
+    st.markdown(format_answer(message["content"]))
     if message.get("sources"):
         with st.expander(f"Sources ({len(message['sources'])} événements)"):
             for s in message["sources"]:
