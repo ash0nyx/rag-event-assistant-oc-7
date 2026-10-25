@@ -99,7 +99,7 @@ The chain lives in `rag/chain.py` (`RagAssistant` class) and runs in two phases:
 
 1. **Retrieval.** The question is embedded with `mistral-embed` and FAISS returns the 20 closest chunks. Chunks whose event is already over (last session before today) are dropped, then one chunk per event is kept (best-ranked first), at most 5 events. No LLM is involved in this phase.
 
-   **Date-aware retrieval.** Vector similarity knows nothing about dates: "novembre" is a word to it, not a constraint, so "un spectacle de danse en novembre" also brought back September and December shows. When the question asks for a period, Python turns it into dates (`requested_period` in `rag/chain.py`: aujourd'hui, ce soir, demain, ce week-end, cette semaine, ce mois-ci, le mois prochain, a month name, a season), fetches 80 candidates instead of 20, and keeps only the events whose session window overlaps that period. If none does, the unfiltered candidates are kept so the model can say "nothing this weekend" and offer the nearest dates. On the 6 dated test questions, the share of retrieved events inside the requested period went from 60 % to 100 %. Limit: the filter uses an event's first and last session dates, so an event held every Thursday from October to December overlaps a weekend window although it never happens on a weekend.
+   **Date-aware retrieval.** Vector similarity knows nothing about dates: "novembre" is a word to it, not a constraint, so "un spectacle de danse en novembre" also brought back September and December shows. When the question asks for a period, Python turns it into dates (`requested_period` in `rag/chain.py`: aujourd'hui, ce soir, demain, ce week-end, cette semaine, ce mois-ci, le mois prochain, a month name, a season), fetches 80 candidates instead of 20, and keeps only the events whose session window overlaps that period. If none does, the unfiltered candidates are kept so the model can say "nothing this weekend" and offer the nearest dates. On the 6 dated test questions, the share of retrieved events inside the requested period went from 60 % to 100 %. The same mechanism applies two more explicit constraints: "gratuit" keeps free events (price text starting with "Gratuit", except "sous condition" entries that state a price), and "enfants", "famille", "ados", "jeunes" keep events with the matching audience keyword or "Tout public". Filters are applied one by one; one that would leave nothing is skipped. Limit: the filter uses an event's first and last session dates, so an event held every Thursday from October to December overlaps a weekend window although it never happens on a weekend.
 2. **Generation.** The kept chunks are pasted into a French system prompt together with today's date, and `ministral-14b-latest` writes the answer. The prompt tells the model to use only the provided events, to give title, dates, venue and price, and, when nothing matches exactly, to say so and then offer the closest events from the context with the difference stated. The prompt is in French on purpose: Mistral models are trained heavily on French, the data and the expected answer are French, and mixing languages costs a small model more than it gains.
 
 The result holds the answer and the sources (uid, title, dates, venue, URL), so the API can show links and the evaluation step can check that answers stay faithful to the context.
@@ -294,6 +294,19 @@ The successive runs, all on the same 14 questions and judge, show how the evalua
 
 Run 5 combines the post-defense changes; faithfulness gains 0.12 and every retrieved event falls in the requested period (0.60 before, 1.00 after). Run 3 is the useful lesson: a prompt addition that looked harmless (season bounds for every question) made the model restrict undated questions to the coming weekend and cost 0.28 of faithfulness. The evaluation caught it, and run 4 recovered it. Precision between runs 1 and 2 reflects the annotation as much as the system: with 20 candidates, questions with only two expected events now return three extra relevant ones that the reference does not list.
 
+### What we tried to improve precision
+
+Precision stays at 0.71 because it is measured against an annotation of one or two events per question while the system returns five. Four ideas were measured on the snapshot, retrieval only, before keeping or dropping them:
+
+| Idea | Result | Decision |
+|------|--------|----------|
+| More events for broad questions (7 or 8 instead of 5) | Recall unchanged at 0.96, precision down to 0.51 / 0.44. The missing Halloween events (adult ones) rank 13th to 35th, behind a dozen children's workshops. | Dropped |
+| MMR (maximal marginal relevance, diverse results) | Recall down to 0.70 / 0.49 / 0.39 depending on the diversity weight: it brings in events unrelated to the question. | Dropped |
+| Distance threshold (drop candidates far from the best match) | Not separable: the five top results sit within 1.0 to 1.18 times the best distance, expected and unexpected events alike (90 % of expected events within 1.07, other events median 1.06). Any useful cut also removes right answers. | Dropped |
+| Exact price and audience filters | Precision and recall unchanged: retrieval already returned free events for "gratuit" questions, because each chunk's header carries the price and audience keywords. The filters remove the remaining leaks (about one event in five on some questions). | Kept, as a guarantee |
+
+The way forward for this metric is the annotation itself: listing every valid event per question would make precision measure the system rather than the reference's size.
+
 Variance: a single run of a 14B judge moves individual scores by 0.1 to 0.3, so conclusions should rest on averages and on reading the answers, not on one number.
 
 The evaluation runs "as of" the date stored in the test set (`today`), not the real clock, so "ce week-end" and the past-event filter resolve the same way whenever it is run. The full run takes about 25 minutes on the free tier with 2 parallel judge calls. More workers looked faster but made every call slower until they timed out (8 workers: 13 of 14 faithfulness jobs lost). `--from-results` re-scores saved answers without re-running the chain, and results are saved before the judge phase so a network drop cannot lose them.
@@ -325,7 +338,7 @@ Two GitHub Actions workflows in `.github/workflows/`:
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 123 unit tests with coverage. Offline, no secret, about a minute. A failing test, or coverage under 85 %, blocks the pull request. The HTML coverage report is uploaded as an artifact. |
+| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 132 unit tests with coverage. Offline, no secret, about a minute. A failing test, or coverage under 85 %, blocks the pull request. The HTML coverage report is uploaded as an artifact. |
 | `evaluate.yml` | manual (Actions tab, "Run workflow") | Runs `evaluate_rag.py` against the committed index snapshot, then the regression gate, and uploads `evaluation/results/` as a downloadable artifact. Needs the `MISTRAL_API_KEY` repository secret. About 25 minutes; a `skip_ragas` checkbox gives the exact retrieval metrics in 2 minutes. |
 
 The evaluation is not run on every push on purpose: it costs API calls and half an hour. It is run after a prompt, model or retrieval change.
@@ -339,7 +352,7 @@ uv run pytest --cov --cov-report=term --cov-report=html   # with coverage; open 
 
 ### Coverage
 
-Coverage is the share of our code lines executed by the tests. 123 tests, 95 % overall:
+Coverage is the share of our code lines executed by the tests. 132 tests, 95 % overall:
 
 | File | Coverage | Not covered |
 |------|----------|-------------|
@@ -411,6 +424,10 @@ FAISS is replaced by a fake store that returns scripted chunks, and the LLM by L
 | `test_in_period_uses_the_session_window_overlap` | An event inside, spanning, before, after the window, or without dates. | The filter's rule, including its fallback. |
 | `test_retrieve_keeps_only_events_in_the_requested_period` | "En novembre" keeps only the November events and fetches 4x more candidates. | The improvement itself. |
 | `test_retrieve_falls_back_when_nothing_is_in_the_period` | Nothing this weekend: the nearest candidates are kept. | The model can still say "nothing this weekend" and offer other dates. |
+| `test_is_free` | "Gratuit", "Gratuit — Entrée libre" and "sous condition" with registration are free; "sous condition" with a price and "Payant" are not. | The price rule, on real wordings from the agenda. |
+| `test_requested_filters_detects_period_price_and_audience` | A question with a weekend, "gratuit" and "enfants" yields the three filters; an unconstrained one none. | Constraint detection. |
+| `test_retrieve_applies_price_and_audience_filters` | "Une activité gratuite pour les enfants ?" drops the paid event and the adults-only one. | The filters in retrieval. |
+| `test_a_filter_that_would_leave_nothing_is_skipped` | No free event at all: the price filter is skipped, the audience filter kept. | The model can say "nothing free" and still offer something. |
 | `test_strip_markdown_keeps_text_and_bullets` / `test_generated_answer_is_stripped_of_markdown` | Bold markers and headings removed, bullets kept, applied to every generated answer. | Plain text in Swagger and in the terminal. |
 | `test_traced_ask_records_spans_and_returns_the_trace_id` | With a fake Langfuse client, a question opens the `ask` and `retrieve` spans with the right content and returns the trace id. | The trace id links a user's vote to the trace. |
 | `test_push_feedback_score_sends_a_boolean_score` | A thumbs down becomes a `user_feedback` score of 0 with its comment on the trace; no trace id, nothing sent. | Feedback visible in Langfuse. |

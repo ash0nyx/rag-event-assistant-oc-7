@@ -19,6 +19,7 @@ import warnings
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
+from typing import Callable
 
 import httpx
 from dotenv import load_dotenv
@@ -39,7 +40,7 @@ EMBEDDING_MODEL = "mistral-embed"
 CHAT_MODEL = "ministral-14b-latest"
 TOP_K_CHUNKS = 20  # chunks fetched from FAISS; some are dropped as past events
 MAX_EVENTS = 5  # distinct events kept after deduplication
-PERIOD_FETCH_FACTOR = 4  # with a requested period, fetch 4x more candidates before filtering
+PERIOD_FETCH_FACTOR = 4  # with a period, price or audience constraint, fetch 4x more candidates before filtering
 RATE_LIMIT_RETRIES = 4  # Mistral free tier answers 429 when called too fast
 RATE_LIMIT_WAIT = 2.0  # seconds; doubled after each failed attempt
 
@@ -248,6 +249,56 @@ def in_period(doc: Document, start: date, end: date) -> bool:
     return first <= end and last >= start
 
 
+_FREE_RE = re.compile(r"\bgratuit(e|s|es|ement)?\b", re.IGNORECASE)
+_PRICE_RE = re.compile(r"\d\s*(€|eur)", re.IGNORECASE)
+# Audience words in the question -> agenda keywords that satisfy them.
+# "Tout public" fits every audience.
+_AUDIENCES = [
+    (re.compile(r"\b(enfants?|famille|petits|bébés?|kids)\b", re.IGNORECASE), ("Enfants", "Tout public")),
+    (re.compile(r"\b(ados?|adolescents?|jeunes)\b", re.IGNORECASE), ("Jeunes", "Tout public")),
+]
+
+
+def is_free(doc: Document) -> bool:
+    """Free events: price text starting with "Gratuit". "Gratuit sous
+    condition" usually means free with registration, unless it states a price
+    ("8 à 15€"), which then does not count as free."""
+    conditions = (doc.metadata.get("conditions") or "").strip()
+    if not conditions.lower().startswith("gratuit"):
+        return False
+    return not (conditions.lower().startswith("gratuit sous condition") and _PRICE_RE.search(conditions))
+
+
+def requested_filters(question: str, today: date) -> list[tuple[str, Callable[[Document], bool]]]:
+    """Constraints the question states explicitly, as exact metadata tests:
+    the period ("en novembre"), the price ("gratuit") and the audience
+    ("pour les enfants", "pour ados"). Vector similarity treats these words as
+    vague topics; Python applies them as hard filters."""
+    filters: list[tuple[str, Callable[[Document], bool]]] = []
+    if period := requested_period(question, today):
+        filters.append(("période", lambda d, p=period: in_period(d, *p)))
+    if _FREE_RE.search(question):
+        filters.append(("gratuit", is_free))
+    for pattern, keywords in _AUDIENCES:
+        if pattern.search(question):
+            filters.append((
+                "public",
+                lambda d, k=keywords: any(kw in (d.metadata.get("keywords") or "") for kw in k),
+            ))
+    return filters
+
+
+def apply_filters(documents: list[Document], filters) -> list[Document]:
+    """Apply the filters one by one. A filter that would leave nothing is
+    skipped, so the model still gets the closest events and can say what is
+    missing ("nothing free this weekend") instead of answering from nothing."""
+    for _, keep in filters:
+        kept = [d for d in documents if keep(d)]
+        if kept:
+            documents = kept
+    return documents
+
+
 _MD_EMPHASIS = re.compile(r"\*\*|__")  # **bold** / __bold__
 _MD_HEADING = re.compile(r"^#{1,6}\s*", re.MULTILINE)  # "## Titre"
 
@@ -361,21 +412,23 @@ class RagAssistant:
             self._callbacks = [CallbackHandler()]
 
     def retrieve(self, question: str, today: date | None = None) -> list[Document]:
-        """Phase 1: vector search, drop finished events, keep the requested
-        period if any, one chunk per event.
+        """Phase 1: vector search, drop finished events, apply the
+        constraints the question states (period, free, audience), one chunk
+        per event.
 
-        With a period ("en novembre", "ce week-end"), 4x more candidates are
-        fetched (still instant with an exact index) because many will be
-        outside the window. If none is inside, the unfiltered candidates are
-        kept, so the model can say "nothing this weekend" and offer the
-        nearest dates instead of answering from an empty context."""
+        With constraints, 4x more candidates are fetched (still instant with
+        an exact index) because many will not pass. A constraint that would
+        leave nothing is skipped, so the model can say "nothing free this
+        weekend" and offer the nearest events instead of answering from an
+        empty context."""
         today = today or date.today()
-        period = requested_period(question, today)
-        k = self.top_k_chunks * PERIOD_FETCH_FACTOR if period else self.top_k_chunks
+        filters = requested_filters(question, today)
+        k = self.top_k_chunks * PERIOD_FETCH_FACTOR if filters else self.top_k_chunks
         hits = drop_past_events(self.vector_store.similarity_search(question, k=k), today)
-        if period:
-            in_window = [d for d in hits if in_period(d, *period)]
-            hits = in_window or hits[: self.top_k_chunks]
+        if filters:
+            filtered = apply_filters(hits, filters)
+            # Nothing passed any filter: keep the best unfiltered candidates.
+            hits = filtered if filtered is not hits else hits[: self.top_k_chunks]
         return dedupe_by_event(hits, self.max_events)
 
     def generate(self, question: str, documents: list[Document], today: date | None = None) -> str:

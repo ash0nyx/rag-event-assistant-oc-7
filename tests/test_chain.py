@@ -416,3 +416,59 @@ def test_strip_markdown_keeps_text_and_bullets():
 def test_generated_answer_is_stripped_of_markdown():
     assistant = RagAssistant(FakeVectorStore([make_doc(1, "Expo A")]), FakeListChatModel(responses=["**Expo A**, gratuit"]))
     assert assistant.ask("Une expo ?").answer == "Expo A, gratuit"
+
+
+# --- Price and audience filters ----------------------------------------------
+
+
+def priced_doc(uid, conditions, keywords="Tout public"):
+    doc = make_doc(uid, f"Événement {uid}")
+    doc.metadata.update(conditions=conditions, keywords=keywords)
+    return doc
+
+
+@pytest.mark.parametrize(
+    "conditions, free",
+    [
+        ("Gratuit", True),
+        ("Gratuit — Entrée libre", True),
+        ("Gratuit sous condition — Inscription obligatoire", True),  # free with registration
+        ("Gratuit sous condition — 8 à 15€", False),  # states a price: not free
+        ("Payant — De 0 à 15 euros.", False),
+        ("", False),
+    ],
+)
+def test_is_free(conditions, free):
+    from rag.chain import is_free
+
+    assert is_free(priced_doc(1, conditions)) is free
+
+
+def test_requested_filters_detects_period_price_and_audience():
+    from rag.chain import requested_filters
+
+    names = lambda q: [name for name, _ in requested_filters(q, THU)]
+    assert names("Une activité gratuite pour les enfants ce week-end ?") == ["période", "gratuit", "public"]
+    assert names("Un spectacle pour ados ?") == ["public"]
+    assert names("Un concert de jazz ?") == []
+
+
+def test_retrieve_applies_price_and_audience_filters():
+    store = FakeVectorStore([
+        priced_doc(1, "Payant — 20 €", "Enfants"),  # best match but paid
+        priced_doc(2, "Gratuit", "Adultes"),  # free but adults only
+        priced_doc(3, "Gratuit", "Enfants"),
+        priced_doc(4, "Gratuit", "Tout public"),
+    ])
+    assistant = RagAssistant(store, FakeListChatModel(responses=["ok"]))
+    docs = assistant.retrieve("Une activité gratuite pour les enfants ?", today=THU)
+    assert [d.metadata["uid"] for d in docs] == [3, 4]
+
+
+def test_a_filter_that_would_leave_nothing_is_skipped():
+    """No free event at all: the price filter is dropped, the audience one kept,
+    so the model can say "nothing free" and offer the closest paid events."""
+    store = FakeVectorStore([priced_doc(1, "Payant", "Adultes"), priced_doc(2, "Payant", "Enfants")])
+    assistant = RagAssistant(store, FakeListChatModel(responses=["ok"]))
+    docs = assistant.retrieve("Une activité gratuite pour les enfants ?", today=THU)
+    assert [d.metadata["uid"] for d in docs] == [2]
