@@ -11,6 +11,8 @@ from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
 from datetime import date
 
+import pytest
+
 from rag.chain import (
     RagAssistant,
     dedupe_by_event,
@@ -243,3 +245,92 @@ def test_ask_with_no_hits_still_answers():
     result = RagAssistant(store, llm).ask("Un opéra ?")
     assert result.sources == []
     assert result.answer == "Aucun événement ne correspond."
+
+
+# --- Langfuse tracing and feedback score, with a fake client ------------------
+
+
+class FakeSpan:
+    def __init__(self, client, name):
+        self.client, self.name = client, name
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def update(self, **kwargs):
+        self.client.updates.append((self.name, kwargs))
+
+
+class FakeLangfuse:
+    """Stands in for langfuse.get_client(): records spans and scores, no network."""
+
+    def __init__(self):
+        self.spans, self.updates, self.scores, self.flushed = [], [], [], False
+
+    def start_as_current_observation(self, name, as_type, input):
+        self.spans.append(name)
+        return FakeSpan(self, name)
+
+    def get_current_trace_id(self):
+        return "trace-123"
+
+    def create_score(self, **kwargs):
+        self.scores.append(kwargs)
+
+    def flush(self):
+        self.flushed = True
+
+
+@pytest.fixture
+def fake_langfuse(monkeypatch):
+    import langfuse
+
+    client = FakeLangfuse()
+    monkeypatch.setattr(langfuse, "get_client", lambda: client)
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk")
+    return client
+
+
+def test_traced_ask_records_spans_and_returns_the_trace_id(fake_langfuse):
+    assistant = RagAssistant(FakeVectorStore([make_doc(1, "Expo A")]), FakeListChatModel(responses=["Expo A."]), tracing=False)
+    assistant.tracing = True  # turned on after construction: no real Langfuse callback is created
+
+    result = assistant.ask("Une expo ?")
+
+    assert result.trace_id == "trace-123"  # stored with the interaction, used by /feedback
+    assert fake_langfuse.spans == ["ask", "retrieve"]
+    retrieve_output = dict(fake_langfuse.updates)["retrieve"]["output"]
+    assert retrieve_output == [{"uid": 1, "title": "Expo A"}]
+    assert dict(fake_langfuse.updates)["ask"]["metadata"] == {"n_sources": 1, "intent": "events"}
+
+
+def test_push_feedback_score_sends_a_boolean_score(fake_langfuse):
+    from rag.chain import push_feedback_score
+
+    push_feedback_score("trace-123", -1, "Mauvaise date")
+    push_feedback_score(None, 1)  # no trace id: nothing sent
+    assert fake_langfuse.scores == [{
+        "name": "user_feedback", "value": 0, "data_type": "BOOLEAN", "trace_id": "trace-123", "comment": "Mauvaise date",
+    }]
+
+
+def test_push_feedback_score_is_silent_without_keys(monkeypatch):
+    from rag.chain import push_feedback_score
+
+    monkeypatch.delenv("LANGFUSE_PUBLIC_KEY", raising=False)
+    push_feedback_score("trace-123", 1)  # must not import or call anything, must not raise
+
+
+def test_flush_traces_only_with_keys(fake_langfuse, monkeypatch):
+    from rag.chain import flush_traces
+
+    flush_traces()
+    assert fake_langfuse.flushed
+    fake_langfuse.flushed = False
+    monkeypatch.delenv("LANGFUSE_SECRET_KEY")
+    flush_traces()
+    assert not fake_langfuse.flushed

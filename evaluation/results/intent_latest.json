@@ -1,0 +1,208 @@
+{
+  "evaluated_at": "2026-10-25T11:09:31.633740+00:00",
+  "model": "ministral-3b-latest",
+  "n": 32,
+  "accuracy": 0.969,
+  "events_refused": 0,
+  "median_latency_ms": 238,
+  "confusion": {
+    "chat->chat": 5,
+    "chat->events": 1,
+    "events->events": 18,
+    "off_topic->off_topic": 8
+  },
+  "rows": [
+    {
+      "question": "Quels concerts de jazz ce week-end ?",
+      "intent": "events",
+      "predicted": "events",
+      "latency_ms": 331
+    },
+    {
+      "question": "Une exposition de photographie en octobre ?",
+      "intent": "events",
+      "predicted": "events",
+      "latency_ms": 204
+    },
+    {
+      "question": "Un atelier gratuit pour les enfants le mercredi ?",
+      "intent": "events",
+      "predicted": "events",
+      "latency_ms": 286
+    },
+    {
+      "question": "Quels événements autour d'Halloween ?",
+      "intent": "events",
+      "predicted": "events",
+      "latency_ms": 277
+    },
+    {
+      "question": "Une balade urbaine sur l'histoire de Paris ?",
+      "intent": "events",
+      "predicted": "events",
+      "latency_ms": 726
+    },
+    {
+      "question": "Un spectacle de danse contemporaine en novembre ?",
+      "intent": "events",
+      "predicted": "events",
+      "latency_ms": 252
+    },
+    {
+      "question": "Une conférence scientifique gratuite ?",
+      "intent": "events",
+      "predicted": "events",
+      "latency_ms": 265
+    },
+    {
+      "question": "Quels marchés de Noël ou événements de Noël en décembre ?",
+      "intent": "events",
+      "predicted": "events",
+      "latency_ms": 313
+    },
+    {
+      "question": "Un concert de musique classique dans une église ?",
+      "intent": "events",
+      "predicted": "events",
+      "latency_ms": 306
+    },
+    {
+      "question": "Un festival de cinéma cet automne ?",
+      "intent": "events",
+      "predicted": "events",
+      "latency_ms": 238
+    },
+    {
+      "question": "Des activités sportives gratuites le dimanche ?",
+      "intent": "events",
+      "predicted": "events",
+      "latency_ms": 220
+    },
+    {
+      "question": "Une pièce de théâtre pour adolescents ?",
+      "intent": "events",
+      "predicted": "events",
+      "latency_ms": 192
+    },
+    {
+      "question": "Y a-t-il un opéra de Wagner ce mois-ci ?",
+      "intent": "events",
+      "predicted": "events",
+      "latency_ms": 245
+    },
+    {
+      "question": "Un cours de cuisine japonaise ?",
+      "intent": "events",
+      "predicted": "events",
+      "latency_ms": 261
+    },
+    {
+      "question": "Que faire avec des ados samedi après-midi ?",
+      "intent": "events",
+      "predicted": "events",
+      "latency_ms": 199
+    },
+    {
+      "question": "Un musée gratuit le dimanche ?",
+      "intent": "events",
+      "predicted": "events",
+      "latency_ms": 487
+    },
+    {
+      "question": "Où écouter de la musique live ce soir ?",
+      "intent": "events",
+      "predicted": "events",
+      "latency_ms": 200
+    },
+    {
+      "question": "Une sortie romantique pour la Saint-Valentin ?",
+      "intent": "events",
+      "predicted": "events",
+      "latency_ms": 193
+    },
+    {
+      "question": "Bonjour",
+      "intent": "chat",
+      "predicted": "chat",
+      "latency_ms": 0
+    },
+    {
+      "question": "Merci beaucoup !",
+      "intent": "chat",
+      "predicted": "chat",
+      "latency_ms": 0
+    },
+    {
+      "question": "Qui es-tu ?",
+      "intent": "chat",
+      "predicted": "chat",
+      "latency_ms": 292
+    },
+    {
+      "question": "Que sais-tu faire ?",
+      "intent": "chat",
+      "predicted": "events",
+      "latency_ms": 232
+    },
+    {
+      "question": "Comment fonctionnes-tu ?",
+      "intent": "chat",
+      "predicted": "chat",
+      "latency_ms": 204
+    },
+    {
+      "question": "Salut, tu vas bien ?",
+      "intent": "chat",
+      "predicted": "chat",
+      "latency_ms": 189
+    },
+    {
+      "question": "Quel temps fera-t-il demain à Paris ?",
+      "intent": "off_topic",
+      "predicted": "off_topic",
+      "latency_ms": 189
+    },
+    {
+      "question": "Qui a gagné la coupe du monde 1998 ?",
+      "intent": "off_topic",
+      "predicted": "off_topic",
+      "latency_ms": 191
+    },
+    {
+      "question": "Écris-moi une fonction Python qui trie une liste",
+      "intent": "off_topic",
+      "predicted": "off_topic",
+      "latency_ms": 205
+    },
+    {
+      "question": "Combien font 17 fois 23 ?",
+      "intent": "off_topic",
+      "predicted": "off_topic",
+      "latency_ms": 281
+    },
+    {
+      "question": "Quel est le prix du Bitcoin ?",
+      "intent": "off_topic",
+      "predicted": "off_topic",
+      "latency_ms": 382
+    },
+    {
+      "question": "Donne-moi une recette de crêpes",
+      "intent": "off_topic",
+      "predicted": "off_topic",
+      "latency_ms": 189
+    },
+    {
+      "question": "Comment renouveler mon passeport ?",
+      "intent": "off_topic",
+      "predicted": "off_topic",
+      "latency_ms": 327
+    },
+    {
+      "question": "Résume l'actualité politique de la semaine",
+      "intent": "off_topic",
+      "predicted": "off_topic",
+      "latency_ms": 200
+    }
+  ]
+}

@@ -1,0 +1,133 @@
+{
+  "description": "Labelled messages for the intent classifier: the 14 RAG test questions plus extra event, small-talk and off-topic messages.",
+  "items": [
+    {
+      "question": "Quels concerts de jazz ce week-end ?",
+      "intent": "events"
+    },
+    {
+      "question": "Une exposition de photographie en octobre ?",
+      "intent": "events"
+    },
+    {
+      "question": "Un atelier gratuit pour les enfants le mercredi ?",
+      "intent": "events"
+    },
+    {
+      "question": "Quels événements autour d'Halloween ?",
+      "intent": "events"
+    },
+    {
+      "question": "Une balade urbaine sur l'histoire de Paris ?",
+      "intent": "events"
+    },
+    {
+      "question": "Un spectacle de danse contemporaine en novembre ?",
+      "intent": "events"
+    },
+    {
+      "question": "Une conférence scientifique gratuite ?",
+      "intent": "events"
+    },
+    {
+      "question": "Quels marchés de Noël ou événements de Noël en décembre ?",
+      "intent": "events"
+    },
+    {
+      "question": "Un concert de musique classique dans une église ?",
+      "intent": "events"
+    },
+    {
+      "question": "Un festival de cinéma cet automne ?",
+      "intent": "events"
+    },
+    {
+      "question": "Des activités sportives gratuites le dimanche ?",
+      "intent": "events"
+    },
+    {
+      "question": "Une pièce de théâtre pour adolescents ?",
+      "intent": "events"
+    },
+    {
+      "question": "Y a-t-il un opéra de Wagner ce mois-ci ?",
+      "intent": "events"
+    },
+    {
+      "question": "Un cours de cuisine japonaise ?",
+      "intent": "events"
+    },
+    {
+      "question": "Que faire avec des ados samedi après-midi ?",
+      "intent": "events"
+    },
+    {
+      "question": "Un musée gratuit le dimanche ?",
+      "intent": "events"
+    },
+    {
+      "question": "Où écouter de la musique live ce soir ?",
+      "intent": "events"
+    },
+    {
+      "question": "Une sortie romantique pour la Saint-Valentin ?",
+      "intent": "events"
+    },
+    {
+      "question": "Bonjour",
+      "intent": "chat"
+    },
+    {
+      "question": "Merci beaucoup !",
+      "intent": "chat"
+    },
+    {
+      "question": "Qui es-tu ?",
+      "intent": "chat"
+    },
+    {
+      "question": "Que sais-tu faire ?",
+      "intent": "chat"
+    },
+    {
+      "question": "Comment fonctionnes-tu ?",
+      "intent": "chat"
+    },
+    {
+      "question": "Salut, tu vas bien ?",
+      "intent": "chat"
+    },
+    {
+      "question": "Quel temps fera-t-il demain à Paris ?",
+      "intent": "off_topic"
+    },
+    {
+      "question": "Qui a gagné la coupe du monde 1998 ?",
+      "intent": "off_topic"
+    },
+    {
+      "question": "Écris-moi une fonction Python qui trie une liste",
+      "intent": "off_topic"
+    },
+    {
+      "question": "Combien font 17 fois 23 ?",
+      "intent": "off_topic"
+    },
+    {
+      "question": "Quel est le prix du Bitcoin ?",
+      "intent": "off_topic"
+    },
+    {
+      "question": "Donne-moi une recette de crêpes",
+      "intent": "off_topic"
+    },
+    {
+      "question": "Comment renouveler mon passeport ?",
+      "intent": "off_topic"
+    },
+    {
+      "question": "Résume l'actualité politique de la semaine",
+      "intent": "off_topic"
+    }
+  ]
+}

@@ -142,6 +142,8 @@ class RagAnswer:
     question: str
     answer: str
     sources: list[dict] = field(default_factory=list)
+    intent: str = "events"  # events | chat | off_topic, see rag/intent.py
+    trace_id: str | None = None  # Langfuse trace, to attach user feedback to it
 
 
 def describe_period(first_begin: str | None, last_end: str | None) -> str | None:
@@ -233,6 +235,23 @@ def flush_traces() -> None:
         get_client().flush()
 
 
+def push_feedback_score(trace_id: str | None, score: int, comment: str | None = None) -> None:
+    """Attach a user's thumbs up/down to the question's Langfuse trace, so the
+    dashboard can filter traces by satisfaction. No-op without tracing or
+    trace id; never raises (feedback is already stored in the database)."""
+    if not (trace_id and tracing_enabled()):
+        return
+    try:
+        from langfuse import get_client
+
+        get_client().create_score(
+            name="user_feedback", value=1 if score > 0 else 0, data_type="BOOLEAN",
+            trace_id=trace_id, comment=comment,
+        )
+    except Exception:
+        pass
+
+
 class RagAssistant:
     """Wraps a vector store and a chat model into one `ask()` method."""
 
@@ -243,8 +262,12 @@ class RagAssistant:
         top_k_chunks: int = TOP_K_CHUNKS,
         max_events: int = MAX_EVENTS,
         tracing: bool | None = None,
+        classifier=None,
     ):
         self.vector_store = vector_store
+        # Optional IntentClassifier (rag/intent.py). None = every question goes
+        # to the RAG, which is what the evaluation and the unit tests want.
+        self.classifier = classifier
         self.top_k_chunks = top_k_chunks
         self.max_events = max_events
         # LCEL chain: prompt -> model -> plain string. Inputs: context, question.
@@ -288,7 +311,7 @@ class RagAssistant:
         raise RuntimeError("unreachable")  # loop always returns or raises
 
     def ask(self, question: str) -> RagAnswer:
-        """Phase 1 + phase 2."""
+        """Phase 0 (intent) + phase 1 (retrieval) + phase 2 (generation)."""
         if not self.tracing:
             return self._ask(question)
 
@@ -300,10 +323,22 @@ class RagAssistant:
         langfuse = get_client()
         with langfuse.start_as_current_observation(name="ask", as_type="span", input={"question": question}) as root:
             result = self._ask(question, langfuse)
-            root.update(output={"answer": result.answer}, metadata={"n_sources": len(result.sources)})
+            result.trace_id = langfuse.get_current_trace_id()
+            root.update(
+                output={"answer": result.answer},
+                metadata={"n_sources": len(result.sources), "intent": result.intent},
+            )
         return result
 
     def _ask(self, question: str, langfuse=None) -> RagAnswer:
+        # Phase 0: small talk and off-topic questions get a fixed answer,
+        # without retrieval or the 14B model.
+        intent = self.classifier.classify(question) if self.classifier is not None else "events"
+        if intent != "events":
+            from rag.intent import FIXED_ANSWERS
+
+            return RagAnswer(question=question, answer=FIXED_ANSWERS[intent], intent=intent)
+
         today = date.today()
         if langfuse is None:
             documents = self.retrieve(question, today)
@@ -332,15 +367,26 @@ def load_vector_store(index_dir: Path = INDEX_DIR, embeddings: Embeddings | None
 
 
 def build_assistant(
-    index_dir: Path = INDEX_DIR, chat_model: str = CHAT_MODEL, tracing: bool | None = None
+    index_dir: Path = INDEX_DIR,
+    chat_model: str = CHAT_MODEL,
+    tracing: bool | None = None,
+    with_intent: bool = True,
 ) -> RagAssistant:
-    """Production wiring: real index, real Mistral models. Tracing follows the
-    LANGFUSE_* environment unless forced (the evaluation script forces it off
-    so 14 synthetic questions do not drown the real ones in the dashboard)."""
+    """Production wiring: real index, real Mistral models, intent classifier
+    in front. Tracing follows the LANGFUSE_* environment unless forced (the
+    evaluation script forces it off so 14 synthetic questions do not drown
+    the real ones in the dashboard)."""
     from langchain_mistralai import ChatMistralAI
 
     load_dotenv()
     # temperature 0: the same question and context give the same answer, which
     # makes the evaluation reproducible and the demo predictable.
     llm = ChatMistralAI(model=chat_model, temperature=0, max_retries=5)
-    return RagAssistant(load_vector_store(index_dir), llm, tracing=tracing)
+    assistant = RagAssistant(load_vector_store(index_dir), llm, tracing=tracing)
+    if with_intent:
+        from rag.intent import build_classifier
+
+        # Same Langfuse callback as the generation, so the classification
+        # shows up as a step of the question's trace.
+        assistant.classifier = build_classifier(callbacks=assistant._callbacks)
+    return assistant
