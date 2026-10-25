@@ -305,8 +305,10 @@ Before the references were completed, precision stayed at 0.71 because it was me
 | MMR (maximal marginal relevance, diverse results) | Recall down to 0.70 / 0.49 / 0.39 depending on the diversity weight: it brings in events unrelated to the question. | Dropped |
 | Distance threshold (drop candidates far from the best match) | Not separable: the five top results sit within 1.0 to 1.18 times the best distance, expected and unexpected events alike (90 % of expected events within 1.07, other events median 1.06). Any useful cut also removes right answers. | Dropped |
 | Exact price and audience filters | Precision and recall unchanged: retrieval already returned free events for "gratuit" questions, because each chunk's header carries the price and audience keywords. The filters remove the remaining leaks (about one event in five on some questions). | Kept, as a guarantee |
+| Tag boost (hybrid search: question words mapped to agenda keywords, matching events moved up among the top 15) | Against the completed reference: photography fixed (recall 0.6 to 1.0), but the Wednesday workshops, contemporary dance and film festival questions got worse, because agenda tags are inconsistent (the Wednesday kids' workshops in the reference are not tagged "Atelier"). Overall precision 0.87 to 0.80, recall 0.92 to 0.85. | Dropped |
+| LLM re-ranker (`ministral-14b` reads the top 8 candidates and returns the best 5 in order) | Precision 0.87 to 0.88, recall 0.92 to 0.88: photography improves, but the model sometimes keeps only 4 events, and the dance and teen theatre misses (Celtic dance, adult comedies tagged "Jeunes") remain. One extra call and about 0.6 s per question. A first run on the top 10 looked worse only because candidates 9 and 10 were never annotated. | Dropped; worth retrying with a larger model |
 
-What did move precision was the annotation itself: once every correct event retrieved was listed, precision went from 0.71 to 0.82 with the same answers, because it now measures the system rather than the size of the reference.
+The remaining recall misses (photography, contemporary dance, teen theatre) need content judgment: a Celtic show is tagged "Danse", an adult comedy "Jeunes". Neither agenda tags nor a 14B re-ranker separates them reliably; a larger model is the next thing to try. What did move precision was the annotation itself: once every correct event retrieved was listed, precision went from 0.71 to 0.82 with the same answers, because it now measures the system rather than the size of the reference.
 
 Variance: a single run of a 14B judge moves individual scores by 0.1 to 0.3, so conclusions should rest on averages and on reading the answers, not on one number.
 
@@ -364,8 +366,8 @@ Coverage is the share of our code lines executed by the tests. 133 tests, 95 % o
 | `scripts/build_index.py` | 95 % | creation of the real Mistral embeddings client |
 | `ui/Chat.py` | 94 % | network-error toasts |
 | `ui/pages/1_Tableau_de_bord.py` | 93 % | a few empty-data branches |
+| `rag/chain.py` | 92 % | loading the real index and Mistral clients |
 | `rag/intent.py` | 92 % | creation of the real `ministral-3b` client |
-| `rag/chain.py` | 89 % | loading the real index and Mistral clients |
 | **Total** | **95 %** | |
 
 What is not covered is the wiring to the real Mistral API, exercised by `scripts/api_test.py` and the evaluation instead. Four command-line tools that only run against the real APIs (`api_test.py`, `ask_question.py`, `evaluate_rag.py`, `evaluate_intent.py`) are excluded from the measure in `pyproject.toml`; their logic lives in measured modules.
@@ -582,6 +584,12 @@ Streamlit's `AppTest` runs each page headlessly; the API is faked by patching `r
 
 ## Status
 
-All six steps of the mission are implemented: environment, data pipeline, FAISS index, RAG chain, REST API, evaluation, Docker. Defended in October 2026; technical report and slides in `docs/`. Added after the defense, following the end of the OpenClassrooms RAG course: Streamlit chat and dashboard, intent classifier, interaction log with user feedback.
+All six steps of the mission are implemented: environment, data pipeline, FAISS index, RAG chain, REST API, evaluation, Docker. Defended in October 2026; technical report and slides in `docs/`. Added after the defense, following the end of the OpenClassrooms RAG course:
 
-Known limits: the period filter uses each event's first and last session dates, so recurring events can overlap a window they do not actually fall on; the index is a snapshot and must be rebuilt to stay current; the data source is the City of Paris agenda, rich on public and cultural events, thin on commercial nightlife; the 14B model available on the free tier still misreads some borderline questions, and a single judge run carries noticeable variance.
+- v0.3.0: Streamlit chat and dashboard, intent classifier, interaction log with user feedback, coverage gate in CI.
+- v0.4.0: date-aware retrieval, price and audience filters, direct answers to broad questions, intent rules (faithfulness 0.83 to 0.95, retrieved events inside the requested period 60 % to 100 %).
+- v0.4.1: completed reference answers and normalized recall@5 (precision 0.82, recall 0.92), ranking experiments documented.
+
+Next candidates, measured as described above: a larger Mistral model for generation, judging and re-ranking; more Open Agenda calendars to widen coverage; conversation history.
+
+Known limits: the period filter uses each event's first and last session dates, so recurring events can overlap a window they do not actually fall on; the index is a snapshot and must be rebuilt to stay current; the data source is the City of Paris agenda, rich on public and cultural events, thin on commercial nightlife and on events published elsewhere (the Cineffable lesbian film festival, for example, is not in it); the 14B model available on the free tier still misreads some borderline questions, and a single judge run carries noticeable variance.
