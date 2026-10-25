@@ -291,7 +291,7 @@ Two GitHub Actions workflows in `.github/workflows/`:
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 96 unit tests with coverage. Offline, no secret, about a minute. A failing test, or coverage under 85 %, blocks the pull request. The HTML coverage report is uploaded as an artifact. |
+| `ci.yml` | every push to `main` and every pull request | Installs the locked dependencies with uv and runs the 97 unit tests with coverage. Offline, no secret, about a minute. A failing test, or coverage under 85 %, blocks the pull request. The HTML coverage report is uploaded as an artifact. |
 | `evaluate.yml` | manual (Actions tab, "Run workflow") | Runs `evaluate_rag.py` against the committed index snapshot, then the regression gate, and uploads `evaluation/results/` as a downloadable artifact. Needs the `MISTRAL_API_KEY` repository secret. About 25 minutes; a `skip_ragas` checkbox gives the exact retrieval metrics in 2 minutes. |
 
 The evaluation is not run on every push on purpose: it costs API calls and half an hour. It is run after a prompt, model or retrieval change.
@@ -305,7 +305,7 @@ uv run pytest --cov --cov-report=term --cov-report=html   # with coverage; open 
 
 ### Coverage
 
-Coverage is the share of our code lines executed by the tests. 96 tests, 95 % overall:
+Coverage is the share of our code lines executed by the tests. 97 tests, 95 % overall:
 
 | File | Coverage | Not covered |
 |------|----------|-------------|
@@ -449,6 +449,7 @@ Streamlit's `AppTest` runs each page headlessly; the API is faked by patching `r
 | `test_chat_down_vote_offers_a_comment_box` | A thumbs down posts -1 at once, then the typed comment is sent. | Negative feedback is the useful kind; the comment says why. |
 | `test_chat_reports_an_unreachable_api` | With the API down the page shows a clear message instead of crashing. | Demo-day resilience. |
 | `test_example_buttons_ask_the_question_and_history_shows_no_stray_values` | A suggestion button sends its question; after a second question, the history is re-rendered once, with no stray `None`. | Regression test for a bug found by hand: Streamlit "magic" displayed the value of a one-line `if/else`. |
+| `test_examples_stay_clickable_after_a_first_question` | After a first question, the main-page suggestions are hidden and the sidebar examples still send their question. | Regression test for a lost click found by hand. |
 | `test_dashboard_with_no_data_says_so` | Empty database: an explanatory message, no error. | First run. |
 | `test_dashboard_shows_kpis_and_negative_feedback` | Question count, satisfaction, median latency and the badly rated answer are shown. | The dashboard's numbers come from the data. |
 

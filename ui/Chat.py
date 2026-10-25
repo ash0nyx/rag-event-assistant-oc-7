@@ -84,6 +84,12 @@ with st.sidebar:
         api_ok = False
     st.caption(f"API : {'connectée' if api_ok else 'injoignable'} ({API_URL})")
     st.caption("Chaque question est traitée indépendamment : l'assistant ne garde pas l'historique.")
+    # Examples live in the sidebar too: drawn on every run, so a click always
+    # registers, even in the middle of a conversation.
+    st.subheader("Exemples")
+    for i, example in enumerate(EXAMPLES):
+        if st.button(example, key=f"side_example_{i}", use_container_width=True):
+            st.session_state.pending = example
     if st.button("Nouvelle conversation", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
@@ -113,11 +119,16 @@ def render_answer(message: dict) -> None:
 
 
 st.title("Que faire à Paris ?")
-if not st.session_state.messages:
+# Read the question before drawing the page: a widget's value is known for the
+# whole run wherever it is drawn. The suggestions below are then shown only
+# while the chat is truly empty, never next to a question being answered
+# (a button drawn once and gone on the next run loses its click).
+question = st.chat_input("Votre question") or st.session_state.pop("pending", None)
+if not st.session_state.messages and not question:
     st.write("Posez une question sur les sorties culturelles à Paris. Quelques idées :")
     cols = st.columns(2)
     for i, example in enumerate(EXAMPLES):
-        if cols[i % 2].button(example, use_container_width=True):
+        if cols[i % 2].button(example, key=f"main_example_{i}", use_container_width=True):
             st.session_state.pending = example
             st.rerun()
 
@@ -130,7 +141,6 @@ for message in st.session_state.messages:
         else:
             st.write(message["content"])
 
-question = st.chat_input("Votre question") or st.session_state.pop("pending", None)
 if question:
     st.session_state.messages.append({"role": "user", "content": question})
     with st.chat_message("user"):

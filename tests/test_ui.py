@@ -124,7 +124,7 @@ def test_example_buttons_ask_the_question_and_history_shows_no_stray_values(fake
     """Click a suggestion, then rerun with a second question: earlier messages
     are re-rendered from history and must not print stray values like None."""
     at = AppTest.from_file(CHAT, default_timeout=30).run()
-    next(b for b in at.button if b.label == "Quel temps fera-t-il demain ?").click().run()
+    at.button(key="main_example_3").click().run()  # "Quel temps fera-t-il demain ?"
     assert fake_api[0] == ("ask", {"question": "Quel temps fera-t-il demain ?"})
 
     at.chat_input[0].set_value("Bonjour").run()
@@ -132,3 +132,16 @@ def test_example_buttons_ask_the_question_and_history_shows_no_stray_values(fake
     # Streamlit magic renders a stray None as the markdown `None`.
     assert not [m.value for m in at.markdown if "None" in m.value]
     assert len([m for m in at.chat_message]) == 4  # 2 questions + 2 answers, each once
+
+
+def test_examples_stay_clickable_after_a_first_question(fake_api):
+    """Your scenario: ask a question, then click an example. The main-page
+    suggestions are gone by then; the sidebar ones must still work."""
+    at = AppTest.from_file(CHAT, default_timeout=30).run()
+    at.chat_input[0].set_value("Bonjour").run()
+    assert not [b for b in at.button if b.key and b.key.startswith("main_example_")]  # hidden once a question is asked
+
+    at.button(key="side_example_2").click().run()
+
+    assert fake_api[-1] == ("ask", {"question": "Une exposition de photographie en novembre ?"})
+    assert len(at.chat_message) == 4
