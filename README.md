@@ -1,8 +1,23 @@
 # Puls-Events RAG Assistant
 
-Proof of concept for a chatbot that answers questions about upcoming cultural events. It uses Retrieval-Augmented Generation (RAG): event data from the Open Agenda API is embedded with Mistral, indexed in FAISS, and queried through a LangChain pipeline exposed as a REST API.
+Proof of concept for a chatbot that answers questions about upcoming cultural events in Paris. It uses Retrieval-Augmented Generation (RAG): event data from the Open Agenda API is embedded with Mistral, indexed in FAISS, and queried through a LangChain pipeline exposed as a REST API. A Streamlit app provides the chat, with thumbs up/down feedback, and a dashboard of usage and satisfaction. An intent classifier keeps greetings and off-topic questions away from the RAG.
 
 OpenClassrooms AI Engineer path, project 7. The technical report (in French, following the OpenClassrooms template) is in [docs/rapport_technique.md](docs/rapport_technique.md); this README is the developer documentation.
+
+## Quick start
+
+With Docker, once `.env` is filled in (see [Setup](#setup)) and the index is built (see [Data pipeline](#data-pipeline)):
+
+```bash
+docker compose up --build
+```
+
+| URL | What |
+|-----|------|
+| http://localhost:8501 | Chat and dashboard (Streamlit) |
+| http://localhost:8000/docs | REST API with Swagger |
+
+A VPN with a kill switch can block these local URLs; see [Docker](#docker).
 
 ## Stack
 
@@ -137,6 +152,18 @@ It checks `/health`, asks three demo questions, and verifies that an empty quest
 uv run uvicorn api.main:app            # terminal 1: the API
 uv run streamlit run ui/Chat.py        # terminal 2: http://localhost:8501
 ```
+
+### How to use the app
+
+1. Open http://localhost:8501. The chat page shows four example questions; click one, or type your own in the box at the bottom.
+2. Read the answer. Under it, **Sources** lists the events used, with links to their Open Agenda pages.
+3. Rate the answer with the thumbs. After a thumbs down, a box asks what was wrong; type a comment and click **Envoyer**. You can change your vote.
+4. The sidebar shows whether the API is reachable, the same example questions (a click starts a new conversation with that question), and **Nouvelle conversation** to clear the chat.
+5. Open **Tableau de bord** in the sidebar's page list to see the statistics. Click **Rafraîchir** to load the latest interactions (the page caches its data for 30 seconds).
+
+Try "Bonjour" or "Quel temps fera-t-il demain ?" to see the intent classifier answer instantly without the RAG.
+
+### What each page does
 
 The Streamlit app has two pages:
 

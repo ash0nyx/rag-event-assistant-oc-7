@@ -20,7 +20,8 @@ from api.database import InteractionStore
 st.set_page_config(page_title="Puls-Events, tableau de bord", page_icon="🏛️", layout="wide")
 st.title("Tableau de bord")
 
-SERIES = "#2a78d6"  # single series everywhere: one hue, no legend needed
+SERIES = "#228B22"  # forest green; one series per chart, one hue, no legend needed.
+# Checked with the dataviz palette validator: >= 3:1 contrast on light and dark surfaces.
 INTENT_LABELS = {"events": "Événements (RAG)", "chat": "Conversation", "off_topic": "Hors sujet"}
 FEEDBACK_LABELS = {1: "Positif", -1: "Négatif"}
 
@@ -69,9 +70,12 @@ def bar(data: pd.DataFrame, x: str, y: str, title: str, horizontal: bool = False
         alt.Chart(data, title=title)
         .mark_bar(color=SERIES, cornerRadiusEnd=4, **({"size": 18} if horizontal else {}))
         .encode(
-            enc_cat(f"{x}:N" if horizontal else f"{x}:T", title=None, sort="-x" if horizontal else None),
+            # Days as categories (one bar each), not a continuous time axis on
+            # which a single day would be a hairline.
+            enc_cat(f"{x}:O", title=None, sort="-x" if horizontal else "ascending",
+                    axis=alt.Axis(labelAngle=0)),
             enc_value(f"{y}:Q", title=None),
-            tooltip=[alt.Tooltip(f"{x}:{'N' if horizontal else 'T'}", title=x.capitalize()), alt.Tooltip(f"{y}:Q", title="Nombre")],
+            tooltip=[alt.Tooltip(f"{x}:O", title=x.capitalize()), alt.Tooltip(f"{y}:Q", title="Nombre")],
         )
         .properties(height=240)
     )
@@ -79,7 +83,7 @@ def bar(data: pd.DataFrame, x: str, y: str, title: str, horizontal: bool = False
 
 c1, c2 = st.columns(2)
 per_day = df.groupby("jour").size().reset_index(name="questions")
-per_day["jour"] = pd.to_datetime(per_day["jour"])
+per_day["jour"] = pd.to_datetime(per_day["jour"]).dt.strftime("%d/%m")
 c1.altair_chart(bar(per_day, "jour", "questions", "Questions par jour"), use_container_width=True)
 by_intent = df.groupby("intention").size().reset_index(name="questions")
 c2.altair_chart(bar(by_intent, "intention", "questions", "Questions par intention", horizontal=True), use_container_width=True)
